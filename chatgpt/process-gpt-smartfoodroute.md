@@ -2545,3 +2545,18 @@ Product roadmap remains:
 - Phase 12 = BLOCKED_EXTERNAL until the release checks above pass.
 
 Do not claim full production release PASS while the MapTiler production-origin probe remains 403.
+
+---
+
+# 60. MAPTILER PRODUCTION ORIGIN RECHECK — PASS 2026-09-20
+
+This section supersedes section 59 only for the MapTiler production-origin result.
+
+Recheck evidence:
+- canonical production origin: `https://smart-food-route.vercel.app`;
+- `/login`, `/reset-password` and `/share/:token` remain HTTP 200 with no observed page errors;
+- Supabase Edge preflight remains HTTP 204 with `Access-Control-Allow-Origin: https://smart-food-route.vercel.app`;
+- MapTiler `streets-v4` style request from the canonical production origin now returns HTTP 200.
+
+Technical hosting/provider production path = VERIFIED.
+Phase 12 Production Audit/Release remains BLOCKED_EXTERNAL only because real email confirmation/reset delivery and one physical Authenticator enrollment/challenge flow are still unverified.

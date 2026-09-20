@@ -20,7 +20,7 @@ Read [PROGRESS.md](PROGRESS.md) first for verified status, external blockers and
 - Canonical Vercel URL: https://smart-food-route.vercel.app.
 - GitHub repository: private trungnguyencore/SmartFoodRoute, connected to Vercel for Git deployments.
 - Supabase production Site URL, exact auth redirects and Edge ALLOWED_ORIGINS are configured for the canonical Vercel origin.
-- MapTiler still requires smart-food-route.vercel.app in the dedicated browser key's Allowed HTTP Origins; the current production-origin smoke request returns HTTP 403 until that external setting is updated.
+- MapTiler production-origin access is configured and verified: a `streets-v4` style request from `https://smart-food-route.vercel.app` returns HTTP 200.
 
 ## Local development
 

@@ -2,8 +2,8 @@
 
 ## Overall Status
 
-Current Phase: Phase 9 Sharing UI DONE — Phases 0–9 verified; production deployment is partially verified
-Current Task: PRODUCTION DEPLOYMENT PARTIAL — GitHub/Vercel/Supabase production config verified; MapTiler production origin returns HTTP 403; Phase 10 product work not started
+Current Phase: Phase 9 Sharing UI DONE — Phases 0–9 verified; technical production deployment path is verified
+Current Task: PRODUCTION RELEASE MANUAL CHECKS — GitHub/Vercel/Supabase/MapTiler production path verified; real email delivery and one physical Authenticator flow remain; Phase 10 product work not started
 Last Updated: 2026-09-20 (Asia/Ho_Chi_Minh)
 
 Authoritative specification: implementation.md v3.0, read completely and unchanged. Previous Google-based Phase 3–4 labels are legacy history only. Phase 0–9 now implement the v3 architecture through Planner, Showtime fallback, Matrix/Scheduler, Final Route/Timeline/Budget and secure Sharing UI.
@@ -34,13 +34,13 @@ Authoritative specification: implementation.md v3.0, read completely and unchang
 | 9 Sharing UI | Save tour, share token, secure public RPC, redaction, QR/revoke | DONE | supabase/migrations/202609200004_phase9_sharing.sql, src/domain/tour.ts, src/services/tourService.ts, src/components/sharing/ShareTourPanel.tsx, src/pages/SharedTourPage.tsx | 94 frontend + 51 security tests PASS; Playwright 14/14 desktop/mobile; live Supabase + live browser save/share/redaction/revoke PASS | Atomic snapshot RPC; public route is outside auth guards and reads only get_shared_tour |
 | 10 External handoffs | Tasks beyond current review/booking handoffs | TODO | — | Not started | Outside Prompt 2 |
 | 11 PWA/Lucky Wheel/Polish | All tasks | TODO | — | Not started | Outside Prompt 2 |
-| 12 Production audit/release | GitHub/Vercel production deployment + release checks | BLOCKED_EXTERNAL | private GitHub repo, Vercel project/alias, Supabase production Auth/CORS | Vercel production/deep-links 200; Edge preflight 204 with canonical origin; MapTiler production-origin probe 403 | MapTiler Allowed HTTP Origin plus real email delivery and one physical Authenticator flow remain |
+| 12 Production audit/release | GitHub/Vercel production deployment + release checks | BLOCKED_EXTERNAL | private GitHub repo, Vercel project/alias, Supabase production Auth/CORS, MapTiler origin restriction | Vercel production/deep-links 200; Edge preflight 204 with canonical origin; MapTiler production-origin style request 200 | Technical hosting/provider path verified; real email delivery and one physical Authenticator flow remain manual |
 
 ## External Blockers
 
 - No Prompt 2 live-provider blocker remains.
-- Production origin is now `https://smart-food-route.vercel.app`. Vercel `VITE_APP_URL`, Edge `ALLOWED_ORIGINS`, Supabase Site URL and exact auth redirect URLs are configured and verified.
-- MapTiler production-origin probe currently returns HTTP 403. Add `smart-food-route.vercel.app` to the dedicated browser key's Allowed HTTP Origins, then rerun the production smoke check.
+- Production origin is `https://smart-food-route.vercel.app`. Vercel `VITE_APP_URL`, Edge `ALLOWED_ORIGINS`, Supabase Site URL and exact auth redirect URLs are configured and verified.
+- MapTiler production-origin restriction is now verified: `streets-v4` style request from the canonical production origin returns HTTP 200.
 - Real email confirmation/reset delivery and one physical Authenticator scan/code remain MANUAL_VERIFICATION_REQUIRED.
 
 ## Technical Blockers
@@ -86,7 +86,8 @@ Authoritative specification: implementation.md v3.0, read completely and unchang
 - 2026-09-20 Phase 9 remote migration PASS: `202609200004_phase9_sharing.sql` pushed successfully; local/remote migration history both show 10/10 applied migrations.
 - 2026-09-20 Phase 9 live security PASS: real Supabase Auth/TOTP/AAL2 run verified atomic `save_tour_snapshot`, Safe DTO `id/totalDurationMinutes/totalBudget`, redaction after source deletion, anonymous direct-table denial and share revocation; temporary users/data cleaned.
 - 2026-09-20 Phase 9 live browser PASS: real browser saved the verified Planner candidate, generated a live share URL + QR, opened it in an unauthenticated browser context, retained public stops while hiding the private start label/location, revoked the token and observed the public URL become unavailable; no page errors and cleanup PASS.
-- 2026-09-20 production deployment partial: private GitHub repo created and pushed on `main`; Vercel project connected to GitHub and production alias `https://smart-food-route.vercel.app` is Ready. Production smoke returned HTTP 200 for `/login`, `/reset-password` and a `/share/:token` deep link with no page errors; Supabase Edge preflight returned 204 and `Access-Control-Allow-Origin: https://smart-food-route.vercel.app`; MapTiler style request from the production origin returned HTTP 403, so release remains externally blocked on the MapTiler origin allowlist.
+- 2026-09-20 production deployment partial: private GitHub repo created and pushed on `main`; Vercel project connected to GitHub and production alias `https://smart-food-route.vercel.app` is Ready. Production smoke returned HTTP 200 for `/login`, `/reset-password` and a `/share/:token` deep link with no page errors; Supabase Edge preflight returned 204 and `Access-Control-Allow-Origin: https://smart-food-route.vercel.app`; initial MapTiler production-origin style request returned HTTP 403.
+- 2026-09-20 MapTiler production-origin recheck PASS: after the external allowlist update, the same `streets-v4` style request from `https://smart-food-route.vercel.app` returned HTTP 200. Technical hosting/provider production path is verified; Phase 12 remains BLOCKED_EXTERNAL only on real email delivery and one physical Authenticator flow.
 
 ## Current Repository State
 
@@ -99,12 +100,12 @@ Authoritative specification: implementation.md v3.0, read completely and unchang
 
 ## Next Action
 
-Production deployment is partially verified. First add `smart-food-route.vercel.app` to the MapTiler browser key's Allowed HTTP Origins and rerun the production smoke check; then complete real email confirmation/reset delivery and one physical Authenticator flow. Phase 10 External Handoffs remains the next product-development phase.
+Technical production deployment is verified. Complete real email confirmation/reset delivery and one physical Authenticator flow before marking Phase 12 release PASS. Phase 10 External Handoffs remains the next product-development phase.
 
 ## Session Handoff
 
 Completed: Phase 0–9 v3 implementation plus private GitHub repository creation, GitHub↔Vercel connection, production Vercel deployment at `https://smart-food-route.vercel.app`, production `VITE_APP_URL`, Supabase Edge CORS and Supabase Auth URL configuration.
-Production verification: `/login`, `/reset-password` and `/share/:token` deep links return HTTP 200 with no observed page errors; Edge preflight returns 204 with the canonical production origin. MapTiler production-origin style request returns HTTP 403, so full release is not yet PASS.
-Remaining deployment/manual work: add `smart-food-route.vercel.app` to MapTiler Allowed HTTP Origins, rerun production smoke, verify real email confirmation/reset delivery and one physical Authenticator flow.
+Production verification: `/login`, `/reset-password` and `/share/:token` deep links return HTTP 200 with no observed page errors; Edge preflight returns 204 with the canonical production origin; MapTiler `streets-v4` style request from the canonical production origin returns HTTP 200.
+Remaining deployment/manual work: verify real email confirmation/reset delivery and one physical Authenticator flow.
 Technical blockers: none; only the existing non-blocking Vite chunk-size warning remains.
 Next product phase after deployment closeout: Phase 10 External Handoffs; Phase 11 remains TODO.
