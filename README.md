@@ -15,6 +15,13 @@ Read [PROGRESS.md](PROGRESS.md) first for verified status, external blockers and
 - Phase 9 adds transactional saved-tour snapshots, expiring share tokens, QR sharing, revocation and an anonymous public route backed only by the redacted `get_shared_tour` RPC.
 - Google Maps is an external HTTPS search/review link only. No Google Maps Platform SDK, API key, Map ID, Places request or Routes request exists.
 
+## Production deployment
+
+- Canonical Vercel URL: https://smart-food-route.vercel.app.
+- GitHub repository: private trungnguyencore/SmartFoodRoute, connected to Vercel for Git deployments.
+- Supabase production Site URL, exact auth redirects and Edge ALLOWED_ORIGINS are configured for the canonical Vercel origin.
+- MapTiler still requires smart-food-route.vercel.app in the dedicated browser key's Allowed HTTP Origins; the current production-origin smoke request returns HTTP 403 until that external setting is updated.
+
 ## Local development
 
 1. Use Node 24 (`.nvmrc`), then run `npm ci`.

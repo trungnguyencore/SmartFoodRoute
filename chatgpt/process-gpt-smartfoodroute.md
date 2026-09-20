@@ -2511,3 +2511,37 @@ Resume commands:
 - `node scripts/live-maptiler.mjs`
 
 Do not restart Prompt 1/1B/2 or Phase 9. Read `PROGRESS.md` first; if it conflicts with this handoff, the newer canonical progress/evidence wins.
+
+---
+
+# 59. PRODUCTION DEPLOYMENT PARTIAL — VERIFIED 2026-09-20
+
+Canonical state remains `PROGRESS.md`; this section supersedes older deployment/Git statements above.
+
+Deployment state:
+- Git initialized on `main`; private repo `trungnguyencore/SmartFoodRoute` created and pushed.
+- Vercel project `trunknguen/smart-food-route` is connected to the GitHub repository.
+- Canonical production alias: `https://smart-food-route.vercel.app`.
+- Vercel production env includes Supabase URL/public key, MapTiler browser key, `VITE_APP_URL`, deploy target and base path.
+- Supabase Edge `ALLOWED_ORIGINS` includes localhost and the canonical Vercel origin.
+- Supabase Auth Site URL is the canonical Vercel origin; exact `/auth/callback` and `/reset-password` redirects plus the existing localhost wildcard are configured.
+
+Verified production smoke:
+- `/login` HTTP 200 and login form loads with no observed page errors.
+- `/reset-password` HTTP 200.
+- `/share/:token` deep link HTTP 200 through Vercel SPA rewrite.
+- Supabase Edge CORS preflight returns 204 and the canonical production origin.
+- MapTiler style request with the production Origin returns HTTP 403.
+
+Phase 12 Production Audit/Release = BLOCKED_EXTERNAL, not PASS.
+Remaining release work:
+- add `smart-food-route.vercel.app` to the dedicated MapTiler browser key's Allowed HTTP Origins, then rerun production smoke;
+- verify real email confirmation/reset delivery;
+- verify one physical Authenticator enrollment/challenge flow.
+
+Product roadmap remains:
+- Phase 10 External Handoffs = next product-development phase after deployment closeout;
+- Phase 11 = TODO;
+- Phase 12 = BLOCKED_EXTERNAL until the release checks above pass.
+
+Do not claim full production release PASS while the MapTiler production-origin probe remains 403.
