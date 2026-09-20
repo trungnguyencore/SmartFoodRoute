@@ -2560,3 +2560,26 @@ Recheck evidence:
 
 Technical hosting/provider production path = VERIFIED.
 Phase 12 Production Audit/Release remains BLOCKED_EXTERNAL only because real email confirmation/reset delivery and one physical Authenticator enrollment/challenge flow are still unverified.
+
+---
+
+# 61. PASSWORDLESS EMAIL + TOTP AUTH — PRODUCTION VERIFIED 2026-09-21
+
+User-facing Auth was redesigned to remove passwords from the UX.
+
+Verified flow:
+- first use: email → QR enrollment → 6-digit TOTP → AAL2 browser session;
+- later use: email → 6-digit TOTP → AAL2 browser session;
+- `auth-totp` keeps its bootstrap AAL1 session server-side and returns browser tokens only after valid TOTP;
+- app RLS/RPC/Geo boundaries remain AAL2-gated;
+- first-use email inbox ownership is not independently verified because no email OTP/magic-link delivery is part of the requested UX.
+
+Evidence:
+- local final gate: 93/93 frontend + 57/57 security tests, build/audit PASS, Playwright 14/14 desktop/mobile, npm audit 0 vulnerabilities;
+- deployed `auth-totp` live acceptance: QR enrollment, generated TOTP, protected RLS access, second email+TOTP login, AAL2 JWT and production CORS PASS; temporary test user cleanup PASS;
+- live Planner/Geoapify/Sharing browser acceptance PASS after the Auth redesign;
+- production `https://smart-food-route.vercel.app/login`: HTTP 200, no password input, `Tiếp tục` visible, passwordless copy visible, no page errors;
+- global `@trunk.ng` attribution links to `https://www.instagram.com/trunk.ng/`;
+- production `auth-totp` + `geo` preflight = 204 with canonical origin; MapTiler style = 200.
+
+Remaining manual release check: one physical Authenticator QR scan/code UX test.

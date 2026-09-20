@@ -2,8 +2,8 @@
 
 ## Overall Status
 
-Current Phase: Phase 9 Sharing UI DONE — Phases 0–9 verified; technical production deployment path is verified
-Current Task: PRODUCTION RELEASE MANUAL CHECKS — GitHub/Vercel/Supabase/MapTiler production path verified; real email delivery and one physical Authenticator flow remain; Phase 10 product work not started
+Current Phase: Phase 9 Sharing UI DONE — Phases 0–9 verified; passwordless email + TOTP production auth is deployed and verified
+Current Task: PRODUCTION RELEASE MANUAL CHECK — production UI/backend path verified; one physical Authenticator QR/code UX check remains; Phase 10 product work not started
 Last Updated: 2026-09-20 (Asia/Ho_Chi_Minh)
 
 Authoritative specification: implementation.md v3.0, read completely and unchanged. Previous Google-based Phase 3–4 labels are legacy history only. Phase 0–9 now implement the v3 architecture through Planner, Showtime fallback, Matrix/Scheduler, Final Route/Timeline/Budget and secure Sharing UI.
@@ -22,7 +22,7 @@ Authoritative specification: implementation.md v3.0, read completely and unchang
 |---|---|---|---|---|---|
 | 0 Foundation | Node 24, strict TS, Vite/React/Tailwind, env/router/query, CI | DONE | package.json, configs, .github/workflows/ci.yml | lint, browser + Edge typecheck, 82 tests, build PASS | Node 24.21.0 used by npm scripts |
 | 1 Schema/security | Provider-neutral forward schema, RLS/AAL2, share/privacy, quota | DONE | supabase/migrations, tests/security/database.test.ts | 25 local PostgreSQL tests PASS; 10 migrations live; two-user live RLS/share audit PASS | Historical migrations preserved; Phase 9 added one forward-only sharing migration |
-| 2 Auth/MFA | Email/password, recovery, TOTP/AAL2, guards and cache cleanup | DONE | src/features/auth, src/components/auth | Auth regression tests PASS; live password + generated TOTP/AAL2 with two temporary users PASS | Email delivery and physical Authenticator remain manual |
+| 2 Auth/MFA | Passwordless email identifier + TOTP enrollment/login, AAL2 guards and cache cleanup | DONE | `src/components/auth/LoginForm.tsx`, `src/services/totpAuth.ts`, `supabase/functions/auth-totp` | 93 frontend + 57 security tests PASS; Playwright 14/14; `npm run live:auth` verifies enrollment, second login, AAL2 and protected RLS live | User-facing flow has no password/email OTP; one physical Authenticator UX check remains manual |
 | 3 MapLibre/MapTiler | Map lifecycle, bundled worker, markers, attribution, opt-in geolocation, route-layer skeleton | DONE | src/components/map, src/lib/mapStyle.ts | unit/component PASS; desktop/mobile real MapLibre WebGL against explicit MOCK style PASS | No Google runtime |
 | 3 MapLibre/MapTiler | Real MapTiler style/key/origin verification | DONE | VITE_MAPTILER_API_KEY, scripts/live-maptiler.mjs | Real streets-v4 style/tiles PASS on desktop + mobile; attribution visible; 28 MapTiler responses per viewport with no non-2xx; unlisted origin rejected 403 | Browser key remains origin-restricted; no Google runtime requests observed |
 | 4 Geoapify Places | Provider abstraction, Edge Function, search/browse/details/reverse, durable CRUD, private place, attribution and external Google URL | DONE | src/services/geoProvider.ts, src/components/places, supabase/functions/geo | unit/component/Edge/E2E PASS; deployed Edge auth/error behavior live PASS | Phase 4 place actions preserved; Prompt 2 extends the same Edge boundary with matrix/routing |
@@ -34,14 +34,14 @@ Authoritative specification: implementation.md v3.0, read completely and unchang
 | 9 Sharing UI | Save tour, share token, secure public RPC, redaction, QR/revoke | DONE | supabase/migrations/202609200004_phase9_sharing.sql, src/domain/tour.ts, src/services/tourService.ts, src/components/sharing/ShareTourPanel.tsx, src/pages/SharedTourPage.tsx | 94 frontend + 51 security tests PASS; Playwright 14/14 desktop/mobile; live Supabase + live browser save/share/redaction/revoke PASS | Atomic snapshot RPC; public route is outside auth guards and reads only get_shared_tour |
 | 10 External handoffs | Tasks beyond current review/booking handoffs | TODO | — | Not started | Outside Prompt 2 |
 | 11 PWA/Lucky Wheel/Polish | All tasks | TODO | — | Not started | Outside Prompt 2 |
-| 12 Production audit/release | GitHub/Vercel production deployment + release checks | BLOCKED_EXTERNAL | private GitHub repo, Vercel project/alias, Supabase production Auth/CORS, MapTiler origin restriction | Vercel production/deep-links 200; Edge preflight 204 with canonical origin; MapTiler production-origin style request 200 | Technical hosting/provider path verified; real email delivery and one physical Authenticator flow remain manual |
+| 12 Production audit/release | GitHub/Vercel production deployment + release checks | BLOCKED_EXTERNAL | private GitHub repo, Vercel project/alias, `auth-totp` + `geo` Edge functions, MapTiler origin restriction | Production `/login` 200 with password field absent, `Tiếp tục` present, `@trunk.ng` Instagram link correct; auth/geo preflight 204; MapTiler 200 | Technical path verified; one physical Authenticator QR/code UX check remains manual |
 
 ## External Blockers
 
 - No Prompt 2 live-provider blocker remains.
 - Production origin is `https://smart-food-route.vercel.app`. Vercel `VITE_APP_URL`, Edge `ALLOWED_ORIGINS`, Supabase Site URL and exact auth redirect URLs are configured and verified.
 - MapTiler production-origin restriction is now verified: `streets-v4` style request from the canonical production origin returns HTTP 200.
-- Real email confirmation/reset delivery and one physical Authenticator scan/code remain MANUAL_VERIFICATION_REQUIRED.
+- Email delivery is no longer part of the user-facing auth design. One physical Authenticator QR scan/code remains MANUAL_VERIFICATION_REQUIRED.
 
 ## Technical Blockers
 
@@ -58,11 +58,13 @@ Authoritative specification: implementation.md v3.0, read completely and unchang
 - Existing six v2 migrations remain immutable. Three forward migrations preserve legacy ownership/notes/references, mark unresolved Google rows `needs_location`, add atomic geo quota and align future schema names without inventing coordinates.
 - MapLibre v6 worker is emitted by Vite through `?worker&url` and configured once; this fixed a failure found by production-browser testing.
 - The Edge Function uses handler-level `getClaims` plus live `getUser`/verified TOTP/AAL2 checks and database quota, so Supabase platform `verify_jwt=false` is deliberate and not anonymous access.
-- Live provider closeout is reproducible through `scripts/live-maptiler.mjs`, `npm run live:security` and `npm run live:planner`; none prints provider secret values.
+- Live provider/auth closeout is reproducible through the recorded MapTiler probe plus `npm run live:security`, `npm run live:auth` and `npm run live:planner`; none prints provider secret values.
 - Prompt 2 routing stays server-side through `/geo`: bounded Route Matrix + final Routing use the Edge secret; Haversine is only an explicitly unverified fallback.
 - Fixed showtime is a scheduler anchor: backward departure calculation is followed by forward validation, opening-hour checks and one-way Top 3 ranking.
 - ShowtimeProvider currently has the safe manual fallback; no Moveek scraping/bypass was added without a permitted feed/adapter source.
 - Git is initialized on `main`; private GitHub repository `trungnguyencore/SmartFoodRoute` is connected to Vercel for Git deployments.
+- User-facing Auth is passwordless: email selects/creates the Supabase identity, first use enrolls TOTP by QR, later logins use email + 6-digit TOTP. Edge `auth-totp` keeps its bootstrap AAL1 session server-side and returns only an AAL2 browser session after valid TOTP. First-use email inbox ownership is not independently verified because this UX intentionally does not send email OTP/magic links.
+- Global creator attribution `@trunk.ng` links to `https://www.instagram.com/trunk.ng/`; Playwright checks the link on the public share route.
 - Phase 9 uses a forward-only migration with transactional `save_tour_snapshot`; the client snapshots start at position 0, then ordered candidate stops. Public sharing reads only `get_shared_tour`, with server-side private/start-point redaction, 7-day token expiry, rotation and revocation.
 - Phase 10+ remains untouched.
 
@@ -87,12 +89,14 @@ Authoritative specification: implementation.md v3.0, read completely and unchang
 - 2026-09-20 Phase 9 live security PASS: real Supabase Auth/TOTP/AAL2 run verified atomic `save_tour_snapshot`, Safe DTO `id/totalDurationMinutes/totalBudget`, redaction after source deletion, anonymous direct-table denial and share revocation; temporary users/data cleaned.
 - 2026-09-20 Phase 9 live browser PASS: real browser saved the verified Planner candidate, generated a live share URL + QR, opened it in an unauthenticated browser context, retained public stops while hiding the private start label/location, revoked the token and observed the public URL become unavailable; no page errors and cleanup PASS.
 - 2026-09-20 production deployment partial: private GitHub repo created and pushed on `main`; Vercel project connected to GitHub and production alias `https://smart-food-route.vercel.app` is Ready. Production smoke returned HTTP 200 for `/login`, `/reset-password` and a `/share/:token` deep link with no page errors; Supabase Edge preflight returned 204 and `Access-Control-Allow-Origin: https://smart-food-route.vercel.app`; initial MapTiler production-origin style request returned HTTP 403.
-- 2026-09-20 MapTiler production-origin recheck PASS: after the external allowlist update, the same `streets-v4` style request from `https://smart-food-route.vercel.app` returned HTTP 200. Technical hosting/provider production path is verified; Phase 12 remains BLOCKED_EXTERNAL only on real email delivery and one physical Authenticator flow.
+- 2026-09-20 MapTiler production-origin recheck PASS: after the external allowlist update, the same `streets-v4` style request from `https://smart-food-route.vercel.app` returned HTTP 200.
+- 2026-09-21 passwordless Auth final gate PASS: `npm run check` = 93/93 frontend + 57/57 security, build/audit PASS; Playwright 14/14 desktop/mobile; `npm audit --omit=dev` = 0 vulnerabilities. Deployed `auth-totp` live acceptance verified new-email QR enrollment, generated TOTP, AAL2-only browser session, protected RLS access, second email+TOTP login and production-origin CORS; temporary Auth user cleanup PASS.
+- 2026-09-21 production frontend smoke PASS on `https://smart-food-route.vercel.app`: `/login` HTTP 200, password field count 0, `Tiếp tục` present, passwordless copy present, global `@trunk.ng` link targets `https://www.instagram.com/trunk.ng/`, no page errors, `auth-totp` and `geo` preflights HTTP 204 with the canonical origin, MapTiler style HTTP 200.
 
 ## Current Repository State
 
 - React application implements Phases 0–9 under v3, including Planner, manual ShowtimeProvider fallback, Matrix/Scheduler, final route, timeline/budget and secure save/share/QR/public-tour flow.
-- Supabase remote contains all ten migrations and active `geo` Edge Function with Places + Route Matrix + Routing actions. `ALLOWED_ORIGINS` includes local development and `https://smart-food-route.vercel.app`; Supabase Auth Site URL and exact `/auth/callback` + `/reset-password` redirects target the canonical production alias; `GEOAPIFY_API_KEY` remains Edge-only.
+- Supabase remote contains all ten migrations plus active `geo` and `auth-totp` Edge Functions. `auth-totp` provides the passwordless email→TOTP bootstrap while returning only AAL2 browser sessions after valid TOTP; `geo` retains Places + Route Matrix + Routing. `ALLOWED_ORIGINS` includes local development and `https://smart-food-route.vercel.app`; `GEOAPIFY_API_KEY` remains Edge-only.
 - Private GitHub repository `trungnguyencore/SmartFoodRoute` tracks `main` and is connected to Vercel project `trunknguen/smart-food-route`; canonical production alias is `https://smart-food-route.vercel.app`.
 - No active Google Maps Platform dependency, request, key or Map ID remains. Compatibility field names occur only in historical migrations where required.
 - `pass-key/`, environment files, Supabase temporary link state and build/test output are ignored.
@@ -100,12 +104,12 @@ Authoritative specification: implementation.md v3.0, read completely and unchang
 
 ## Next Action
 
-Technical production deployment is verified. Complete real email confirmation/reset delivery and one physical Authenticator flow before marking Phase 12 release PASS. Phase 10 External Handoffs remains the next product-development phase.
+Technical production deployment and passwordless email + TOTP auth are verified. Complete one physical Authenticator QR scan/code UX check before marking Phase 12 release PASS. Phase 10 External Handoffs remains the next product-development phase.
 
 ## Session Handoff
 
-Completed: Phase 0–9 v3 implementation plus private GitHub repository creation, GitHub↔Vercel connection, production Vercel deployment at `https://smart-food-route.vercel.app`, production `VITE_APP_URL`, Supabase Edge CORS and Supabase Auth URL configuration.
-Production verification: `/login`, `/reset-password` and `/share/:token` deep links return HTTP 200 with no observed page errors; Edge preflight returns 204 with the canonical production origin; MapTiler `streets-v4` style request from the canonical production origin returns HTTP 200.
-Remaining deployment/manual work: verify real email confirmation/reset delivery and one physical Authenticator flow.
+Completed: Phase 0–9 v3 implementation plus private GitHub/Vercel production deployment and the passwordless email + TOTP auth redesign. Production `auth-totp` is live; the deployed frontend shows no password field, uses email→QR/TOTP or email→TOTP, and globally links `@trunk.ng` to the requested Instagram profile.
+Production verification: `/login` HTTP 200, no observed page errors, auth/geo preflights 204 with the canonical production origin, MapTiler 200; live auth verifies new enrollment, later email+TOTP login, AAL2 session and protected RLS access.
+Remaining deployment/manual work: one physical Authenticator QR scan/code UX check.
 Technical blockers: none; only the existing non-blocking Vite chunk-size warning remains.
 Next product phase after deployment closeout: Phase 10 External Handoffs; Phase 11 remains TODO.
