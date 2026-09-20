@@ -84,8 +84,6 @@ test("Planner builds fixed-cinema Top route through matrix then final routing", 
     ],
   });
   await login(page);
-  await page.getByLabel("Mã xác thực", { exact: true }).fill("123456");
-  await page.getByRole("button", { name: "Xác minh", exact: true }).click();
 
   await page.getByRole("button", { name: "Lên lịch" }).click();
   await expect(

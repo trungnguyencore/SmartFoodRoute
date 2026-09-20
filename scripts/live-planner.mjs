@@ -135,7 +135,7 @@ try {
 
   const client = createClient(url, publicKey, options);
   const signed = await client.auth.signInWithPassword({ email, password });
-  requirePass(!signed.error && !!signed.data.session, "temporary password login");
+  requirePass(!signed.error && !!signed.data.session, "test-only AAL1 setup");
   const enrolled = await client.auth.mfa.enroll({
     factorType: "totp",
     friendlyName: "Temporary Planner browser verification",
@@ -241,10 +241,9 @@ try {
     timeout: 30000,
   });
   await page.getByLabel("Email", { exact: true }).fill(email);
-  await page.getByLabel("Mật khẩu", { exact: true }).fill(password);
-  await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
+  await page.getByRole("button", { name: "Tiếp tục", exact: true }).click();
   await page.getByLabel("Mã xác thực", { exact: true }).fill(totp(secret));
-  await page.getByRole("button", { name: "Xác minh", exact: true }).click();
+  await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
   await page
     .getByRole("heading", { name: "Những nơi muốn ghé." })
     .waitFor({ timeout: 30000 });

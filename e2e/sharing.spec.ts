@@ -50,6 +50,9 @@ test("public share route works without login and only renders redacted DTO", asy
 
   await page.goto("http://127.0.0.1:5174/share/" + SHARE_TOKEN);
   await expect(page.getByRole("heading", { name: "Tour public" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Instagram của @trunk.ng" }),
+  ).toHaveAttribute("href", "https://www.instagram.com/trunk.ng/");
   await expect(page.getByText("Điểm bắt đầu riêng tư")).toBeVisible();
   await expect(page.getByText("Quán công khai")).toBeVisible();
   await expect(page.getByText("Quận 1, TP.HCM")).toBeVisible();

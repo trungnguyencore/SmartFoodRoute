@@ -1,86 +1,42 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
-import { MemoryRouter } from "react-router-dom";
 import { LoginForm } from "./LoginForm";
-import { PasswordPage } from "../../pages/PasswordPage";
 import { AuthContext } from "../../features/auth/context";
+
 const sdk = vi.hoisted(() => ({
-  signIn: vi.fn(),
-  signUp: vi.fn(),
-  reset: vi.fn(),
+  begin: vi.fn(),
+  finish: vi.fn(),
+  setSession: vi.fn(),
+  refresh: vi.fn(),
 }));
+
+vi.mock("../../services/totpAuth", () => {
+  class TotpAuthError extends Error {
+    constructor(
+      readonly status: number,
+      readonly code: string,
+    ) {
+      super(code);
+    }
+  }
+  return {
+    beginTotpAuth: sdk.begin,
+    finishTotpAuth: sdk.finish,
+    TotpAuthError,
+  };
+});
+
 vi.mock("../../lib/supabase", () => ({
   getSupabase: () => ({
     auth: {
-      signInWithPassword: sdk.signIn,
-      signUp: sdk.signUp,
-      resetPasswordForEmail: sdk.reset,
+      setSession: sdk.setSession,
     },
   }),
 }));
-vi.mock("../../lib/env", () => ({
-  appUrl: (path: string) => "https://test.example" + path,
-}));
-beforeEach(() => {
-  sdk.signIn.mockResolvedValue({ data: {}, error: null });
-  sdk.signUp.mockResolvedValue({ data: { session: null }, error: null });
-  sdk.reset.mockResolvedValue({ error: null });
-});
-it("submits email/password as first factor", async () => {
-  render(
-    <MemoryRouter>
-      <LoginForm />
-    </MemoryRouter>,
-  );
-  const user = userEvent.setup();
-  await user.type(screen.getByLabelText("Email"), "test@example.com");
-  await user.type(screen.getByLabelText("Mật khẩu"), "test-password");
-  await user.click(screen.getByRole("button", { name: "Đăng nhập" }));
-  expect(sdk.signIn).toHaveBeenCalledWith({
-    email: "test@example.com",
-    password: "test-password",
-  });
-});
-it("signup with email confirmation explains the next step", async () => {
-  render(
-    <MemoryRouter>
-      <LoginForm signup />
-    </MemoryRouter>,
-  );
-  const user = userEvent.setup();
-  await user.type(screen.getByLabelText("Email"), "test@example.com");
-  await user.type(screen.getByLabelText("Mật khẩu"), "test-password");
-  await user.click(screen.getByRole("button", { name: "Tạo tài khoản" }));
-  expect(await screen.findByRole("status")).toHaveTextContent("kiểm tra email");
-  expect(sdk.signUp).toHaveBeenCalledWith(
-    expect.objectContaining({
-      options: { emailRedirectTo: "https://test.example/auth/callback" },
-    }),
-  );
-});
-it("login errors do not expose SDK internals", async () => {
-  sdk.signIn.mockResolvedValue({
-    error: new Error("sensitive internal error"),
-  });
-  render(
-    <MemoryRouter>
-      <LoginForm />
-    </MemoryRouter>,
-  );
-  const user = userEvent.setup();
-  await user.type(screen.getByLabelText("Email"), "test@example.com");
-  await user.type(screen.getByLabelText("Mật khẩu"), "test-password");
-  await user.click(screen.getByRole("button", { name: "Đăng nhập" }));
-  expect(await screen.findByRole("status")).toHaveTextContent(
-    "Đăng nhập thất bại",
-  );
-  expect(
-    screen.queryByText("sensitive internal error"),
-  ).not.toBeInTheDocument();
-});
-it("password recovery uses the configured callback and a generic confirmation", async () => {
-  render(
+
+function renderForm() {
+  return render(
     <AuthContext.Provider
       value={{
         session: null,
@@ -88,25 +44,113 @@ it("password recovery uses the configured callback and a generic confirmation", 
         loading: false,
         error: null,
         recovery: false,
-        refresh: vi.fn(),
+        refresh: sdk.refresh,
         logout: vi.fn(),
         finishRecovery: vi.fn(),
       }}
     >
-      <MemoryRouter>
-        <PasswordPage />
-      </MemoryRouter>
+      <LoginForm />
     </AuthContext.Provider>,
   );
+}
+
+beforeEach(() => {
+  sdk.begin.mockReset();
+  sdk.finish.mockReset();
+  sdk.setSession.mockReset();
+  sdk.refresh.mockReset();
+  sdk.setSession.mockResolvedValue({ data: {}, error: null });
+  sdk.refresh.mockResolvedValue(undefined);
+});
+
+it("existing account uses email then Authenticator code with no password", async () => {
+  sdk.begin.mockResolvedValue({ mode: "verify" });
+  sdk.finish.mockResolvedValue({
+    access_token: "aal2-access",
+    refresh_token: "refresh",
+    expires_in: 3600,
+    token_type: "bearer",
+  });
+  renderForm();
   const user = userEvent.setup();
-  await user.type(screen.getByLabelText("Email"), "test@example.com");
-  await user.click(screen.getByRole("button", { name: "Gửi liên kết" }));
+
+  expect(screen.queryByLabelText("Mật khẩu")).not.toBeInTheDocument();
+  await user.type(screen.getByLabelText("Email"), "User@Example.com");
+  await user.click(screen.getByRole("button", { name: "Tiếp tục" }));
+
   await waitFor(() =>
-    expect(sdk.reset).toHaveBeenCalledWith("test@example.com", {
-      redirectTo: "https://test.example/reset-password",
+    expect(sdk.begin).toHaveBeenCalledWith("user@example.com"),
+  );
+  expect(
+    screen.getByText(/mã 6 số đang hiển thị trong ứng dụng Authenticator/i),
+  ).toBeInTheDocument();
+
+  await user.type(screen.getByLabelText("Mã xác thực"), "123456");
+  await user.click(screen.getByRole("button", { name: "Đăng nhập" }));
+  await waitFor(() =>
+    expect(sdk.finish).toHaveBeenCalledWith({
+      email: "user@example.com",
+      code: "123456",
+      factorId: undefined,
     }),
   );
-  expect(await screen.findByRole("status")).toHaveTextContent(
-    "Nếu email hợp lệ",
+  expect(sdk.setSession).toHaveBeenCalledWith({
+    access_token: "aal2-access",
+    refresh_token: "refresh",
+  });
+  expect(sdk.refresh).toHaveBeenCalled();
+});
+
+it("new account shows QR and binds verification to the enrollment factor", async () => {
+  sdk.begin.mockResolvedValue({
+    mode: "enroll",
+    factorId: "30000000-0000-4000-8000-000000000003",
+    uri: "otpauth://totp/SmartFoodRoute?secret=TESTONLY",
+    secret: "TESTONLY",
+  });
+  sdk.finish.mockResolvedValue({
+    access_token: "aal2-access",
+    refresh_token: "refresh",
+    expires_in: 3600,
+    token_type: "bearer",
+  });
+  renderForm();
+  const user = userEvent.setup();
+
+  await user.type(screen.getByLabelText("Email"), "new@example.com");
+  await user.click(screen.getByRole("button", { name: "Tiếp tục" }));
+  expect(
+    await screen.findByRole("img", { name: "Mã QR thiết lập Authenticator" }),
+  ).toBeInTheDocument();
+  expect(screen.getByText("TESTONLY")).toBeInTheDocument();
+
+  await user.type(screen.getByLabelText("Mã xác thực"), "123456");
+  await user.click(screen.getByRole("button", { name: "Hoàn tất đăng ký" }));
+  await waitFor(() =>
+    expect(sdk.finish).toHaveBeenCalledWith({
+      email: "new@example.com",
+      code: "123456",
+      factorId: "30000000-0000-4000-8000-000000000003",
+    }),
   );
+});
+
+it("invalid code stays generic and never exposes provider internals", async () => {
+  sdk.begin.mockResolvedValue({ mode: "verify" });
+  sdk.finish.mockRejectedValue(new Error("sensitive provider message"));
+  renderForm();
+  const user = userEvent.setup();
+
+  await user.type(screen.getByLabelText("Email"), "test@example.com");
+  await user.click(screen.getByRole("button", { name: "Tiếp tục" }));
+  await user.type(screen.getByLabelText("Mã xác thực"), "000000");
+  await user.click(screen.getByRole("button", { name: "Đăng nhập" }));
+
+  expect(await screen.findByRole("status")).toHaveTextContent(
+    "Mã không hợp lệ",
+  );
+  expect(
+    screen.queryByText("sensitive provider message"),
+  ).not.toBeInTheDocument();
+  expect(sdk.setSession).not.toHaveBeenCalled();
 });

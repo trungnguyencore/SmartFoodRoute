@@ -6,7 +6,8 @@ Read [PROGRESS.md](PROGRESS.md) first for verified status, external blockers and
 ## Architecture through Phase 9
 
 - React 19, strict TypeScript, Vite and Tailwind CSS v4.
-- Supabase Auth with email/password, recovery and TOTP/AAL2 guards.
+- Passwordless user UX: enter email, enroll TOTP by QR on first use, then use email + the 6-digit Authenticator code on later logins.
+- Supabase Edge Function `auth-totp` keeps its AAL1 bootstrap session server-side and returns a browser session only after TOTP succeeds; app data remains protected by AAL2 RLS/RPC guards.
 - Supabase PostgreSQL with owner RLS, restrictive AAL2 policies and safe public-share RPCs.
 - MapLibre GL JS with a MapTiler browser style.
 - Authenticated Supabase Edge Function `geo` as the only path to Geoapify Places, Route Matrix and final Routing.
@@ -44,11 +45,12 @@ npx supabase db push
 npx supabase secrets set GEOAPIFY_API_KEY=YOUR_SERVER_KEY
 npx supabase secrets set ALLOWED_ORIGINS=http://localhost:5173,https://YOUR_PRODUCTION_ORIGIN
 npx supabase functions deploy geo --use-api --import-map supabase/functions/deno.json
+npx supabase functions deploy auth-totp --no-verify-jwt
 ```
 
 `GEOAPIFY_API_KEY` is server-only. The Edge Function validates the action-specific schema, verifies the user and verified TOTP/AAL2 state, enforces an atomic per-user quota, fixes the upstream host/path, normalizes responses, and suppresses provider/internal error bodies.
 
-Configure the Auth Site URL and exact callback/reset redirect URLs. Enable email confirmation, SMTP and TOTP. Production origins and provider-key restrictions live outside the repository.
+Enable TOTP and keep the production origin in `ALLOWED_ORIGINS`. The user-facing login flow does not use passwords, password recovery, email OTP or magic-link delivery. The server-side bootstrap uses Supabase Auth internally and never returns its AAL1 session to the browser. Production origins and provider-key restrictions live outside the repository.
 
 ## Verification
 
@@ -66,10 +68,11 @@ With the ignored account-scoped credentials present:
 ```sh
 npm run live:audit
 npm run live:security
+npm run live:auth
 npm run live:planner
 ```
 
-The live security script creates two uniquely named temporary users, verifies real password/TOTP/AAL2, RLS ownership, Edge authorization, live Geoapify autocomplete/Places/details/reverse plus Route Matrix/final Routing through the deployed Edge Function, share redaction after source deletion and revocation, then deletes both temporary Auth users and cascade-owned test data. `npm run live:planner` adds a real browser Planner journey with temporary places and verifies live matrix/routing HTTP 200, verified result labels and a MapLibre canvas change after route rendering, then cleans up. These scripts do not verify email delivery or a physical Authenticator app. Real MapTiler browser acceptance is handled separately by `node scripts/live-maptiler.mjs`.
+`npm run live:security` is a lower-level Supabase/RLS probe and still uses a test-only AAL1 setup before TOTP so it can explicitly verify AAL1 denial and AAL2 access. `npm run live:auth` is the canonical user-auth acceptance: new email → QR enrollment → generated TOTP → AAL2 session → protected RLS path → second login with the same email/TOTP, with temporary-user cleanup. `npm run live:planner` then exercises the real browser Planner/Geoapify/Sharing path using the new email + TOTP UI. These automated scripts do not replace one physical Authenticator scan/code UX check. Real MapTiler provider acceptance remains separately evidenced by the prior production/browser probe.
 
 ## External provider verification
 
@@ -77,7 +80,7 @@ Before production release:
 
 - MapTiler: set the restricted browser key, load the real `streets-v4` style on desktop/mobile, confirm attribution and inspect origin/quota errors.
 - Geoapify: set the Edge secret, then test a small number of Vietnamese autocomplete, category Places, details, reverse-geocode, Route Matrix and final Routing requests through `/functions/v1/geo`.
-- Auth: verify real email confirmation/reset delivery and one physical Authenticator TOTP flow.
+- Auth: verify one physical Authenticator QR scan/code flow. Email delivery is not part of the user-facing auth design.
 - Hosting: configure the production origin in MapTiler, `ALLOWED_ORIGINS`, Supabase Site URL and Auth redirect allowlist.
 
 ## Technical references

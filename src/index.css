@@ -745,3 +745,22 @@ p {
     grid-template-columns: 1fr;
   }
 }
+
+.creator-mark {
+  display: block;
+  width: max-content;
+  margin: 10px 16px 0 auto;
+  padding: 7px 10px;
+  border: 1px solid #e8e4dc;
+  border-radius: 999px;
+  background: #fffdf9;
+  color: #7f2b1a;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 4px 16px #203b3214;
+}
+
+.creator-mark:hover {
+  text-decoration: underline;
+}

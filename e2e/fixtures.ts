@@ -30,6 +30,7 @@ export async function mockSupabase(
   } = {},
 ) {
   let aal = "aal1";
+  let hasEnrollment = enrolled;
   let verified = enrolled;
   let places: Record<string, unknown>[] = initialPlaces.map((place) => ({
     ...place,
@@ -107,6 +108,38 @@ export async function mockSupabase(
           "access-control-allow-methods": "GET,POST,PATCH,DELETE,PUT",
         },
       });
+    if (url.pathname === "/functions/v1/auth-totp") {
+      if (body?.action === "begin") {
+        if (hasEnrollment) return fulfill({ mode: "verify" });
+        return fulfill({
+          mode: "enroll",
+          factorId: FACTOR_ID,
+          secret: "TESTONLY",
+          uri: "otpauth://totp/SmartFoodRoute?secret=TESTONLY",
+        });
+      }
+      if (body?.action === "finish") {
+        if (body.code !== "123456")
+          return fulfill({ error: { code: "INVALID_CODE" } }, 401);
+        if (!hasEnrollment && body.factorId !== FACTOR_ID)
+          return fulfill(
+            { error: { code: "AUTH_FLOW_RESTART_REQUIRED" } },
+            409,
+          );
+        hasEnrollment = true;
+        verified = true;
+        aal = "aal2";
+        const current = session();
+        return fulfill({
+          session: {
+            access_token: current.access_token,
+            refresh_token: current.refresh_token,
+            expires_in: current.expires_in,
+            token_type: current.token_type,
+          },
+        });
+      }
+    }
     if (url.pathname === "/auth/v1/token") {
       aal = "aal1";
       return fulfill(session());
@@ -258,9 +291,19 @@ export async function mockSupabase(
   });
   return { requests, getPlaces: () => places };
 }
-export async function login(page: Page, origin = "http://127.0.0.1:5174") {
+export async function beginLogin(
+  page: Page,
+  origin = "http://127.0.0.1:5174",
+) {
   await page.goto(origin + "/login");
   await page.getByLabel("Email", { exact: true }).fill("test@example.com");
-  await page.getByLabel("Mật khẩu", { exact: true }).fill("test-password-only");
-  await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
+  await page.getByRole("button", { name: "Tiếp tục", exact: true }).click();
+}
+
+export async function login(page: Page, origin = "http://127.0.0.1:5174") {
+  await beginLogin(page, origin);
+  await page.getByLabel("Mã xác thực", { exact: true }).fill("123456");
+  await page
+    .getByRole("button", { name: /Đăng nhập|Hoàn tất đăng ký/ })
+    .click();
 }

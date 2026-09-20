@@ -1,7 +1,8 @@
 import { Navigate } from "react-router-dom";
 import { LoginForm } from "../components/auth/LoginForm";
 import { useAuth } from "../hooks/useAuth";
-export function LoginPage({ signup = false }: { signup?: boolean }) {
+
+export function LoginPage() {
   const auth = useAuth();
   if (auth.loading)
     return (
@@ -14,17 +15,17 @@ export function LoginPage({ signup = false }: { signup?: boolean }) {
   return (
     <main className="auth-card card">
       <p className="eyebrow">SmartFoodRoute</p>
-      <h1>{signup ? "Bắt đầu buổi hẹn mới." : "Những điểm hẹn của bạn."}</h1>
+      <h1>Những điểm hẹn của bạn.</h1>
       <p className="muted">
-        Lưu quán yêu thích và những địa điểm riêng tư. Xác thực hai bước bảo vệ
-        dữ liệu của bạn.
+        Không cần mật khẩu. Nhập email rồi dùng mã 6 số từ Authenticator để
+        đăng nhập; email mới sẽ được hướng dẫn quét QR một lần.
       </p>
       {auth.error && (
         <p role="alert" className="error">
           {auth.error}
         </p>
       )}
-      <LoginForm signup={signup} />
+      <LoginForm />
     </main>
   );
 }

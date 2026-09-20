@@ -32,6 +32,15 @@ export function App() {
           Router === BrowserRouter ? envResult.data.VITE_BASE_PATH : undefined
         }
       >
+        <a
+          className="creator-mark"
+          href="https://www.instagram.com/trunk.ng/"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Instagram của @trunk.ng"
+        >
+          @trunk.ng
+        </a>
         <AppRoutes />
       </Router>
     </Providers>

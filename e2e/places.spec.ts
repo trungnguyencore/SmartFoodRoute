@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { mockSupabase, login } from "./fixtures";
+import { mockSupabase, beginLogin } from "./fixtures";
 
 test("mocked SDK journey: login, reject wrong TOTP, AAL2, custom CRUD and reload", async ({
   page,
@@ -7,18 +7,15 @@ test("mocked SDK journey: login, reject wrong TOTP, AAL2, custom CRUD and reload
   const service = await mockSupabase(page);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await login(page);
-  await expect(
-    page.getByRole("heading", { name: "Xác thực hai bước" }),
-  ).toBeVisible();
+  await beginLogin(page);
   expect(
     service.requests.filter((r) => r.path.startsWith("/rest/")),
   ).toHaveLength(0);
   await page.getByLabel("Mã xác thực", { exact: true }).fill("000000");
-  await page.getByRole("button", { name: "Xác minh", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("Mã không hợp lệ");
+  await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Mã không hợp lệ");
   await page.getByLabel("Mã xác thực", { exact: true }).fill("123456");
-  await page.getByRole("button", { name: "Xác minh", exact: true }).click();
+  await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Những nơi muốn ghé." }),
   ).toBeVisible();
@@ -74,22 +71,23 @@ test("mocked SDK journey: login, reject wrong TOTP, AAL2, custom CRUD and reload
   expect(service.getPlaces()).toHaveLength(0);
   await page.getByRole("button", { name: "Đăng xuất", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Đăng nhập", exact: true }),
+    page.getByRole("button", { name: "Tiếp tục", exact: true }),
   ).toBeVisible();
   expect(errors).toEqual([]);
 });
 
-test("mocked first enrollment exposes QR only after explicit request", async ({
+test("mocked first enrollment shows QR after a new email", async ({
   page,
 }) => {
   await mockSupabase(page, { enrolled: false });
-  await login(page);
-  await page.getByRole("button", { name: "Tạo mã QR bảo mật" }).click();
+  await beginLogin(page);
   await expect(
-    page.getByRole("img", { name: "Mã QR thiết lập TOTP" }),
+    page.getByRole("img", { name: "Mã QR thiết lập Authenticator" }),
   ).toBeVisible();
   await page.getByLabel("Mã xác thực", { exact: true }).fill("123456");
-  await page.getByRole("button", { name: "Xác minh", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Hoàn tất đăng ký", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Những nơi muốn ghé." }),
   ).toBeVisible();

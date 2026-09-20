@@ -23,3 +23,7 @@ verify_enabled = true
 [functions.geo]
 # Handler verifies signatures + live user/factor, including new signing keys.
 verify_jwt = false
+
+[functions.auth-totp]
+# Public bootstrap endpoint; it returns a browser session only after TOTP succeeds.
+verify_jwt = false

@@ -14,8 +14,6 @@ test("mocked Geo Edge journey: autocomplete, durable POI CRUD, details/privacy a
       platformRequests.push(request.url());
   });
   await login(page);
-  await page.getByLabel("Mã xác thực", { exact: true }).fill("123456");
-  await page.getByRole("button", { name: "Xác minh", exact: true }).click();
   await page.getByRole("button", { name: "Tìm địa điểm", exact: true }).click();
   const search = page.getByRole("combobox", { name: "Tìm địa điểm / địa chỉ" });
   await search.fill("cà phê");
@@ -116,8 +114,6 @@ test("real MapLibre WebGL renders a MOCK style with attribution and cleans up on
     }),
   );
   await login(page, "http://127.0.0.1:5175");
-  await page.getByLabel("Mã xác thực", { exact: true }).fill("123456");
-  await page.getByRole("button", { name: "Xác minh", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Vị trí của tôi" }),
   ).toBeVisible();

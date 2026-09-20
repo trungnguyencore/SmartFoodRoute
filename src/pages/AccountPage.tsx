@@ -14,7 +14,9 @@ export function AccountPage() {
       <Link to="/">← Về địa điểm</Link>
       <h1>Tài khoản</h1>
       <MfaStatus />
-      <Link to="/forgot-password">Đổi / khôi phục mật khẩu</Link>
+      <p className="muted">
+        Tài khoản dùng email + mã 6 số từ Authenticator; không có mật khẩu.
+      </p>
       <section className="stack">
         <h2>Xóa dữ liệu ứng dụng</h2>
         <p>
