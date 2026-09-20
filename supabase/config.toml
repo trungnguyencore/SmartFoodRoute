@@ -1,0 +1,25 @@
+project_id = "smartfoodroute"
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+[db]
+port = 54322
+major_version = 17
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173/auth/callback", "http://localhost:5173/reset-password"]
+enable_signup = true
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[functions.geo]
+# Handler verifies signatures + live user/factor, including new signing keys.
+verify_jwt = false
