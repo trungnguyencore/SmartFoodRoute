@@ -59,11 +59,8 @@ export function coordinatesFromGoogleMapsUrl(value: string) {
   if (!url) return null;
   const decoded = decodeURIComponent(url.href);
 
-  const at = decoded.match(
-    /@(-?\d{1,2}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)(?:,|\/|$)/,
-  );
-  if (at?.[1] && at[2]) return coordinates(at[1], at[2]);
-
+  // Google place URLs can contain both a camera center (@lat,lng)
+  // and the actual place pin (!3dlat!4dlng). Prefer the pin.
   const data = decoded.match(
     /!3d(-?\d{1,2}(?:\.\d+)?)!4d(-?\d{1,3}(?:\.\d+)?)/,
   );
@@ -77,6 +74,12 @@ export function coordinatesFromGoogleMapsUrl(value: string) {
       .match(/^(-?\d{1,2}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)$/);
     if (pair?.[1] && pair[2]) return coordinates(pair[1], pair[2]);
   }
+
+  const at = decoded.match(
+    /@(-?\d{1,2}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)(?:,|\/|$)/,
+  );
+  if (at?.[1] && at[2]) return coordinates(at[1], at[2]);
+
   return null;
 }
 

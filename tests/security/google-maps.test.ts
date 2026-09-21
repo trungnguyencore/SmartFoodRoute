@@ -38,6 +38,15 @@ describe("Google Maps link resolver", () => {
     ).toEqual({ lat: 10.78, lng: 106.7 });
   });
 
+  it("prefers the place pin over the camera center when both are present", () => {
+    const zapi =
+      "https://www.google.com/maps/place/Zap%C3%AD+pizza/@10.8419401,106.6755569,18z/data=!4m16!1m9!3m8!1s0x31752f134db0f583:0x5b9213d4e1364f1a!2sZap%C3%AD+pizza!8m2!3d10.841487!4d106.6778395!9m1!1b1!16s%2Fg%2F11y20nxf0x!3m5!1s0x31752f134db0f583:0x5b9213d4e1364f1a!8m2!3d10.841487!4d106.6778395!16s%2Fg%2F11y20nxf0x?entry=ttu";
+    expect(coordinatesFromGoogleMapsUrl(zapi)).toEqual({
+      lat: 10.841487,
+      lng: 106.6778395,
+    });
+  });
+
   it("extracts lookup text when coordinates are absent", () => {
     expect(
       lookupTextFromGoogleMapsUrl(
