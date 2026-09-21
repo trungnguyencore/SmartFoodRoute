@@ -2583,3 +2583,23 @@ Evidence:
 - production `auth-totp` + `geo` preflight = 204 with canonical origin; MapTiler style = 200.
 
 Remaining manual release check: one physical Authenticator QR scan/code UX test.
+
+---
+
+# 62. GOOGLE MAPS LINK → INTERNAL COORDINATES — PRODUCTION VERIFIED 2026-09-21
+
+Custom-place UX no longer exposes latitude/longitude inputs. Users paste an HTTPS Google Maps/share URL and the app stores coordinates internally for Map/Planner.
+
+Implementation:
+- `PlaceEditor.tsx` removes manual latitude/longitude fields for custom-place creation and exposes Google Maps URL + `Xác định vị trí`;
+- `supabase/functions/_shared/googleMaps.ts` parses coordinate-bearing Google Maps URLs, accepts only allowlisted HTTPS Google hosts, bounds redirects and rejects redirect escapes;
+- deployed `geo` action `resolveGoogleMapsUrl` follows Google short-links only within the allowlist; if a link contains place text but no coordinates it falls back to existing Geoapify geocoding;
+- no Google Maps Platform SDK/API key/Map ID/Places/Routes API was added.
+
+Verification:
+- `npm run check` PASS: 94/94 frontend + 67/67 security, build and security audit PASS;
+- `npm audit --omit=dev` = 0 vulnerabilities;
+- Playwright 14/14 desktop/mobile PASS; custom CRUD test verifies no `Vĩ độ`/`Kinh độ` fields, Google Maps resolution, and internal lat/lng persistence;
+- production `geo` live test resolved both a coordinate-bearing Google Maps long URL and a real `maps.app.goo.gl` short URL; temporary user cleanup PASS;
+- implementation commit `685861b` CI SUCCESS and Vercel production Ready;
+- production Dashboard bundle contains `Liên kết Google Maps`, `Xác định vị trí`, `Đã xác định vị trí` and does not contain `Vĩ độ` or `Kinh độ`.
