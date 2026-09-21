@@ -13,8 +13,13 @@ import { PlannerPanel } from "../components/planner/PlannerPanel";
 import { usePlannerStore } from "../stores/plannerStore";
 import type { MapPlace, SavedPlace } from "../domain/place";
 import type { GeoPlace } from "../services/geoProvider";
-import { MapPin, Plus, Search } from "lucide-react";
+import { Download, MapPin, Plus, Search } from "lucide-react";
 import { hasCustomPlaceDraft } from "../utils/customPlaceDraft";
+import {
+  listAllSavedPlaces,
+  listSavedPlacesByIds,
+} from "../services/placesService";
+import { downloadPlacesTxt } from "../utils/placeExport";
 export function DashboardPage() {
   const auth = useAuth();
   const [page, setPage] = useState(0);
@@ -30,6 +35,10 @@ export function DashboardPage() {
   const [custom, setCustom] = useState(() => hasCustomPlaceDraft());
   const [providerPlace, setProviderPlace] = useState<GeoPlace | null>(null);
   const [message, setMessage] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exportSelection, setExportSelection] = useState<Set<string>>(
+    () => new Set(),
+  );
   const selectedId = useMapStore((s) => s.selectedId);
   const initialCenter = useRef(false);
   const markers = useMemo(
@@ -70,6 +79,55 @@ export function DashboardPage() {
     setPage(0);
     useMapStore.getState().select(place.id);
   }
+
+  function toggleExportPlace(id: string) {
+    setExportSelection((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function exportPlaces(mode: "all" | "selected") {
+    const userId = auth.session?.user.id;
+    if (!userId || auth.access !== "ready") {
+      setMessage("Cần đăng nhập lại trước khi xuất danh sách.");
+      return;
+    }
+    if (mode === "selected" && exportSelection.size === 0) {
+      setMessage("Chọn ít nhất một địa điểm để xuất.");
+      return;
+    }
+    setExporting(true);
+    setMessage("");
+    try {
+      const places =
+        mode === "all"
+          ? await listAllSavedPlaces(userId)
+          : await listSavedPlacesByIds(userId, [...exportSelection]);
+      if (!places.length) {
+        setMessage("Không có địa điểm phù hợp để xuất.");
+        return;
+      }
+      const suffix = mode === "all" ? "tat-ca" : "da-chon";
+      const date = new Date().toISOString().slice(0, 10);
+      downloadPlacesTxt(
+        places,
+        `smartfoodroute-${suffix}-${date}.txt`,
+      );
+      setMessage(
+        mode === "all"
+          ? `Đã xuất ${places.length} địa điểm.`
+          : `Đã xuất ${places.length} địa điểm được chọn.`,
+      );
+    } catch {
+      setMessage("Không xuất được danh sách. Kiểm tra kết nối và thử lại.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <main className="dashboard">
       <header className="app-header">
@@ -177,6 +235,24 @@ export function DashboardPage() {
                 Tải lại
               </button>
             </div>
+            <div className="export-actions" aria-label="Xuất danh sách địa điểm">
+              <button
+                className="secondary"
+                disabled={exporting || saved.isPending}
+                onClick={() => void exportPlaces("all")}
+              >
+                <Download size={16} aria-hidden="true" />
+                Xuất tất cả TXT
+              </button>
+              <button
+                className="secondary"
+                disabled={exporting || exportSelection.size === 0}
+                onClick={() => void exportPlaces("selected")}
+              >
+                <Download size={16} aria-hidden="true" />
+                Xuất đã chọn ({exportSelection.size})
+              </button>
+            </div>
             {saved.isPending && <p role="status">Đang tải bộ sưu tập…</p>}
             {saved.isError && (
               <p role="alert" className="error">
@@ -201,16 +277,26 @@ export function DashboardPage() {
             )}
             <div className="place-list">
               {saved.data?.places.map((place) => (
-                <PlaceCard
-                  key={place.id}
-                  place={place}
-                  onSelect={() => {
-                    useMapStore.getState().select(place.id);
-                    const marker = markers.find((m) => m.id === place.id);
-                    if (marker)
-                      useMapStore.getState().setView(marker.location, 16);
-                  }}
-                />
+                <div className="place-export-item" key={place.id}>
+                  <label className="place-export-select">
+                    <input
+                      type="checkbox"
+                      checked={exportSelection.has(place.id)}
+                      onChange={() => toggleExportPlace(place.id)}
+                      aria-label={`Chọn ${place.name} để xuất TXT`}
+                    />
+                    <span>Chọn</span>
+                  </label>
+                  <PlaceCard
+                    place={place}
+                    onSelect={() => {
+                      useMapStore.getState().select(place.id);
+                      const marker = markers.find((m) => m.id === place.id);
+                      if (marker)
+                        useMapStore.getState().setView(marker.location, 16);
+                    }}
+                  />
+                </div>
               ))}
             </div>
             {(page > 0 || saved.data?.hasNext) && (

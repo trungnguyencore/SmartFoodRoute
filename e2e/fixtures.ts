@@ -278,7 +278,19 @@ export async function mockSupabase(
       // AAL simulation is a UI fixture only; real RLS is tested separately in PostgreSQL.
       if (aal !== "aal2")
         return fulfill({ message: "not authorized", code: "42501" }, 403);
-      if (method === "GET") return fulfill(places);
+      if (method === "GET") {
+        const idFilter = url.searchParams.get("id");
+        if (idFilter?.startsWith("in.(") && idFilter.endsWith(")")) {
+          const ids = new Set(
+            idFilter
+              .slice(4, -1)
+              .split(",")
+              .map((value) => value.replace(/^"|"$/g, "")),
+          );
+          return fulfill(places.filter((place) => ids.has(String(place.id))));
+        }
+        return fulfill(places);
+      }
       if (method === "POST") {
         const saved = { ...body, id: "30000000-0000-4000-8000-000000000003" };
         places.push(saved);

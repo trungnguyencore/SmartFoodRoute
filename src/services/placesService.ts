@@ -52,6 +52,43 @@ export async function listSavedPlaces(
   const rows = z.array(savedPlaceRowSchema).parse(data);
   return { places: rows.slice(0, PAGE_SIZE), hasNext: rows.length > PAGE_SIZE };
 }
+export async function listAllSavedPlaces(
+  userId: string,
+  signal?: AbortSignal,
+) {
+  const owner = z.uuid().parse(userId);
+  const all: ReturnType<typeof savedPlaceRowSchema.parse>[] = [];
+  const batchSize = 200;
+  for (let from = 0; ; from += batchSize) {
+    let query = getSupabase()
+      .from("saved_places")
+      .select("*")
+      .eq("user_id", owner)
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(from, from + batchSize - 1);
+    if (signal) query = query.abortSignal(signal);
+    const { data, error } = await query;
+    if (error) throw failure(error.code);
+    const rows = z.array(savedPlaceRowSchema).parse(data);
+    all.push(...rows);
+    if (rows.length < batchSize) break;
+  }
+  return all;
+}
+
+export async function listSavedPlacesByIds(
+  userId: string,
+  ids: string[],
+  signal?: AbortSignal,
+) {
+  if (!ids.length) return [];
+  const parsedIds = z.array(z.uuid()).parse(ids);
+  const wanted = new Set(parsedIds);
+  const all = await listAllSavedPlaces(userId, signal);
+  return all.filter((place) => wanted.has(place.id));
+}
+
 export async function listPlannerPlaces(
   userId: string,
   signal?: AbortSignal,

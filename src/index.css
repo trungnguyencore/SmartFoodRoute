@@ -220,8 +220,12 @@ p {
   background: #fffbf5;
   padding: 26px 22px;
   height: calc(100dvh - 90px);
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   border-right: 1px solid #e8e4dc;
+}
+.panel-content {
+  min-width: 0;
 }
 .places-panel > h2 {
   font-size: 1.7rem;
@@ -241,6 +245,35 @@ p {
 }
 .saved-heading h3 {
   font-weight: 700;
+}
+.export-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.export-actions button {
+  min-width: 0;
+  padding: 10px 11px;
+  font-size: 0.72rem;
+}
+.place-export-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+.place-export-select {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding-top: 16px;
+  color: #5c6662;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+.place-export-select input {
+  margin: 0;
 }
 .text-button {
   background: transparent;
@@ -521,13 +554,40 @@ p {
 .planner-shell {
   margin: 18px 0 24px;
   padding: 16px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   border: 1px solid #dfded5;
   border-radius: 18px;
   background: #fff;
+  container-type: inline-size;
+  container-name: planner-shell;
 }
 .planner-panel {
   display: grid;
   gap: 16px;
+  min-width: 0;
+  max-width: 100%;
+}
+.planner-panel > *,
+.planner-grid-2 > *,
+.planner-fieldset,
+.candidate-choice,
+.candidate-choice span {
+  min-width: 0;
+  max-width: 100%;
+}
+.planner-panel input,
+.planner-panel select,
+.planner-panel textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+.planner-panel input[type="datetime-local"] {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 .planner-fieldset {
   display: grid;
@@ -542,8 +602,13 @@ p {
 }
 .planner-grid-2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
+}
+@container planner-shell (min-width: 560px) {
+  .planner-grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 .candidate-list {
   display: grid;

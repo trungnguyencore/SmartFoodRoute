@@ -89,9 +89,10 @@ test("Planner builds fixed-cinema Top route through matrix then final routing", 
   await expect(
     page.getByRole("heading", { name: "Lên lịch cho buổi đi chơi." }),
   ).toBeVisible();
-  await page.getByRole("checkbox", { name: /Bún bò/ }).check();
-  await page.getByRole("checkbox", { name: /Rạp trung tâm/ }).check();
-  await page.getByRole("checkbox", { name: /Cafe tối/ }).check();
+  const candidates = page.locator(".candidate-list");
+  await candidates.getByRole("checkbox", { name: /Bún bò/ }).check();
+  await candidates.getByRole("checkbox", { name: /Rạp trung tâm/ }).check();
+  await candidates.getByRole("checkbox", { name: /Cafe tối/ }).check();
 
   const showtime = new Date(Date.now() + 4 * 60 * 60_000);
   showtime.setSeconds(0, 0);
@@ -104,6 +105,28 @@ test("Planner builds fixed-cinema Top route through matrix then final routing", 
   await page
     .getByLabel("Link đặt vé HTTPS (không bắt buộc)")
     .fill("https://moveek.com/booking/test");
+
+  const plannerShell = page.locator(".planner-shell");
+  expect(
+    await plannerShell.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth + 1,
+    ),
+  ).toBe(true);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  const shellBox = await plannerShell.boundingBox();
+  expect(shellBox).toBeTruthy();
+  for (const label of ["Có thể xuất phát từ", "Muộn nhất kết thúc"]) {
+    const inputBox = await page.getByLabel(label).boundingBox();
+    expect(inputBox).toBeTruthy();
+    expect(inputBox!.x).toBeGreaterThanOrEqual(shellBox!.x - 1);
+    expect(inputBox!.x + inputBox!.width).toBeLessThanOrEqual(
+      shellBox!.x + shellBox!.width + 1,
+    );
+  }
 
   await page.getByRole("button", { name: "Tìm Top 3 lịch trình" }).click();
   await expect(
