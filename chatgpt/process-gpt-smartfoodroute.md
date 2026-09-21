@@ -2644,3 +2644,26 @@ Verification:
 - production smoke: root, favicon, Apple Touch Icon, manifest and OG image HTTP 200; Dashboard bundle contains both export labels; CSS contains `@container planner-shell`.
 
 Phase 11 remains TODO as a full phase: these branding/responsive assets do not imply offline/service-worker PWA support, and Lucky Wheel is still unstarted.
+
+---
+
+# 65. SECURE GUEST ACCESS + SUGGESTION INBOX — PRODUCTION VERIFIED 2026-09-21
+
+Implemented:
+- login keeps email → TOTP as the primary path and adds `Try another way` for guest access codes;
+- successful guest exchange creates a separate short-lived guest capability, not a Supabase Auth session;
+- `/guest` is read-only for saved places/map and allows only sanitized suggestion submission;
+- Account page exposes guest code and suggestion management only after AAL2 admin authorization;
+- guest tables keep RLS enabled, browser roles have no direct grants, and Edge uses explicit service-role grants;
+- plaintext guest codes/tokens are not stored; server-side HMAC, 12-hour sessions and attempt rate limiting are enforced.
+
+Verification:
+- `npm run check` PASS: 101/101 frontend + 76/76 security, production build/runtime audit PASS;
+- `npm run test:e2e` PASS: 20/20 desktop/mobile; `npm audit --omit=dev` = 0 vulnerabilities;
+- remote migration history is 13/13 through `202609210003_guest_service_role_grants.sql`;
+- deployed `guest-access` Edge Function version 1 is ACTIVE with `verify_jwt=false` by design; handler owns guest/admin authorization;
+- production CORS preflight from `https://smart-food-route.vercel.app` returns 204 and a valid-format unknown code returns 401;
+- implementation commit `24a9351`; GitHub Actions run `35592613137` SUCCESS; Vercel deployment `smart-food-route-kg70f3388-trunknguen.vercel.app` Ready;
+- deployed bundles contain `Try another way`, read-only guest UI, suggestion UI, and Account `Access codes`/suggestion management.
+
+Remaining manual release check: one physical Authenticator QR/code UX acceptance. Because production admin code creation is AAL2-gated, a full valid production guest-code journey depends on that physical-admin path.
