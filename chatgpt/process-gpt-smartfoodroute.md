@@ -2622,3 +2622,25 @@ Verified evidence:
 - local final gate: 94/94 frontend + 68/68 security, build/audit PASS, Playwright 14/14, npm audit 0 vulnerabilities;
 - deployed `geo` live acceptance with the exact Zapí URL returned `10.841487, 106.6778395`; temporary Auth test user cleanup PASS;
 - implementation commit `1740f0e` GitHub Actions CI SUCCESS and Vercel production Ready.
+
+---
+
+# 64. TXT EXPORT + BRANDING + RESPONSIVE PLANNER — PRODUCTION VERIFIED 2026-09-21
+
+Implemented:
+- saved-place TXT export has two modes: all owner places and explicit checkbox selection;
+- exported ordering uses `H0/H1...` for `start_point` rows and `D1/D2...` for all other destinations;
+- saved Google Maps URLs are preserved; otherwise a Google Maps search URL is generated from exact coordinates/name/address;
+- browser favicon, Apple Touch Icon, 192/512 manifest icons and 1200x630 OG image are deployed;
+- Planner layout now responds to its own container width, stacks paired fields when narrow and constrains native datetime inputs to the panel.
+
+Verification:
+- `npm run check` PASS: 101/101 frontend + 69/69 security, build and runtime/secret audit PASS;
+- `npm audit --omit=dev` = 0 vulnerabilities;
+- Playwright 16/16 desktop/mobile PASS; export E2E reads downloaded TXT files for both modes;
+- Planner E2E asserts shell/document no horizontal overflow and both datetime inputs remain inside the Planner shell;
+- implementation commit `8a037b9` GitHub Actions run `35584143755` SUCCESS;
+- Vercel production Ready; canonical alias resolves to `smart-food-route-r9pzcch99-trunknguen.vercel.app`;
+- production smoke: root, favicon, Apple Touch Icon, manifest and OG image HTTP 200; Dashboard bundle contains both export labels; CSS contains `@container planner-shell`.
+
+Phase 11 remains TODO as a full phase: these branding/responsive assets do not imply offline/service-worker PWA support, and Lucky Wheel is still unstarted.
