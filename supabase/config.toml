@@ -27,3 +27,7 @@ verify_jwt = false
 [functions.auth-totp]
 # Public bootstrap endpoint; it returns a browser session only after TOTP succeeds.
 verify_jwt = false
+
+[functions.guest-access]
+# Public code exchange + capability endpoint; handler enforces code/session/admin boundaries.
+verify_jwt = false

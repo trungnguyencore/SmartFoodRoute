@@ -16,6 +16,9 @@ const DashboardPage = lazy(() =>
 const SharedTourPage = lazy(() =>
   import("../pages/SharedTourPage").then((m) => ({ default: m.SharedTourPage })),
 );
+const GuestPage = lazy(() =>
+  import("../pages/GuestPage").then((m) => ({ default: m.GuestPage })),
+);
 
 export function AppRoutes() {
   return (
@@ -33,6 +36,7 @@ export function AppRoutes() {
         <Route path="/reset-password" element={<Navigate to="/login" replace />} />
         <Route path="/auth/callback" element={<Navigate to="/login" replace />} />
         <Route path="/share/:token" element={<SharedTourPage />} />
+        <Route path="/guest" element={<GuestPage />} />
         <Route element={<AuthGuard />}>
           <Route path="/mfa/enroll" element={<MfaPage />} />
           <Route path="/mfa/verify" element={<MfaPage />} />

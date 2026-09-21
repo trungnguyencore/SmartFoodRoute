@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { z } from "zod";
 import { getSupabase } from "../../lib/supabase";
@@ -8,6 +9,11 @@ import {
   finishTotpAuth,
   TotpAuthError,
 } from "../../services/totpAuth";
+import {
+  exchangeGuestCode,
+  formatGuestCodeInput,
+  normalizeGuestCodeInput,
+} from "../../services/guestAccess";
 
 const emailSchema = z.email("Email không hợp lệ");
 type Stage =
@@ -23,7 +29,10 @@ type Stage =
 
 export function LoginForm() {
   const auth = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
+  const [alternate, setAlternate] = useState(false);
+  const [guestCode, setGuestCode] = useState("");
   const [code, setCode] = useState("");
   const [stage, setStage] = useState<Stage>({ kind: "email" });
   const [message, setMessage] = useState("");
@@ -58,6 +67,24 @@ export function LoginForm() {
       }
     } catch {
       setMessage("Chưa thể bắt đầu đăng nhập. Hãy thử lại.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const enterGuest = async () => {
+    const normalized = normalizeGuestCodeInput(guestCode);
+    if (normalized.length < 4 || normalized.length > 16) {
+      setMessage("Mã phải có 4–16 ký tự A–Z hoặc 0–9.");
+      return;
+    }
+    setBusy(true);
+    setMessage("");
+    try {
+      await exchangeGuestCode(normalized);
+      navigate("/guest", { replace: true });
+    } catch {
+      setMessage("Mã không đúng hoặc đã hết hiệu lực.");
     } finally {
       setBusy(false);
     }
@@ -100,6 +127,55 @@ export function LoginForm() {
   };
 
   if (stage.kind === "email") {
+    if (alternate) {
+      return (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void enterGuest();
+          }}
+        >
+          <label>
+            Access code
+            <input
+              aria-label="Access code"
+              autoComplete="off"
+              inputMode="text"
+              value={guestCode}
+              onChange={(event) =>
+                setGuestCode(formatGuestCodeInput(event.target.value))
+              }
+              placeholder="A1B2-C3D4"
+              minLength={4}
+              maxLength={19}
+              required
+            />
+          </label>
+          <p className="muted">
+            Nhập code được cấp để tiếp tục ở chế độ xem và gửi gợi ý.
+          </p>
+          {message && (
+            <p role="status" className="notice">
+              {message}
+            </p>
+          )}
+          <button disabled={busy}>
+            {busy ? "Đang kiểm tra…" : "Tiếp tục"}
+          </button>
+          <button
+            className="text-button login-alternate"
+            type="button"
+            onClick={() => {
+              setAlternate(false);
+              setGuestCode("");
+              setMessage("");
+            }}
+          >
+            Use email instead
+          </button>
+        </form>
+      );
+    }
     return (
       <form
         onSubmit={(event) => {
@@ -124,6 +200,16 @@ export function LoginForm() {
         )}
         <button disabled={busy}>
           {busy ? "Đang kiểm tra…" : "Tiếp tục"}
+        </button>
+        <button
+          className="text-button login-alternate"
+          type="button"
+          onClick={() => {
+            setAlternate(true);
+            setMessage("");
+          }}
+        >
+          Try another way
         </button>
       </form>
     );

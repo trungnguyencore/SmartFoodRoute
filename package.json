@@ -12,7 +12,7 @@
     "preview": "vite preview --host 127.0.0.1",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit && npm run typecheck:edge",
-    "typecheck:edge": "deno check --config supabase/functions/deno.json supabase/functions/geo/index.ts supabase/functions/auth-totp/index.ts",
+    "typecheck:edge": "deno check --config supabase/functions/deno.json supabase/functions/geo/index.ts supabase/functions/auth-totp/index.ts supabase/functions/guest-access/index.ts",
     "test": "vitest",
     "test:security": "vitest run --config vitest.security.config.ts",
     "test:e2e": "playwright test",

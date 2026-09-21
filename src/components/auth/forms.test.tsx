@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import { LoginForm } from "./LoginForm";
 import { AuthContext } from "../../features/auth/context";
 
@@ -49,7 +50,9 @@ function renderForm() {
         finishRecovery: vi.fn(),
       }}
     >
-      <LoginForm />
+      <MemoryRouter>
+        <LoginForm />
+      </MemoryRouter>
     </AuthContext.Provider>,
   );
 }

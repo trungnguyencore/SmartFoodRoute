@@ -634,4 +634,18 @@ describe("actual PostgreSQL RLS and security RPCs", () => {
       await scalar("select count(*)::int as v from public.saved_tours"),
     ).toBe(before);
   });
+
+  it("keeps guest access storage inaccessible to browser database roles", async () => {
+    await identity("anon");
+    await expect(
+      db.query("select * from public.guest_access_codes"),
+    ).rejects.toThrow();
+    await identity("authenticated");
+    await expect(
+      db.query(
+        "insert into public.guest_suggestions(owner_user_id,name) values($1,'Bypass')",
+        [A],
+      ),
+    ).rejects.toThrow();
+  });
 });
