@@ -2603,3 +2603,22 @@ Verification:
 - production `geo` live test resolved both a coordinate-bearing Google Maps long URL and a real `maps.app.goo.gl` short URL; temporary user cleanup PASS;
 - implementation commit `685861b` CI SUCCESS and Vercel production Ready;
 - production Dashboard bundle contains `Liên kết Google Maps`, `Xác định vị trí`, `Đã xác định vị trí` and does not contain `Vĩ độ` or `Kinh độ`.
+
+---
+
+# 63. GOOGLE MAPS PLACE-PIN PRIORITY FIX — PRODUCTION VERIFIED 2026-09-21
+
+Root cause:
+- Google Maps place URLs can contain `@lat,lng` for the camera center and `!3dlat!4dlng` for the actual place pin.
+- The resolver previously returned the `@...` pair first, so saved places could be offset from the real pin.
+
+Fix:
+- priority is now actual place pin `!3d...!4d...` → explicit query coordinate pair → `@...` camera center fallback;
+- regression test uses the supplied Zapí pizza URL containing both coordinate sets.
+
+Verified evidence:
+- expected Zapí place pin = `10.841487, 106.6778395`;
+- camera center in the same URL = `10.8419401, 106.6755569`;
+- local final gate: 94/94 frontend + 68/68 security, build/audit PASS, Playwright 14/14, npm audit 0 vulnerabilities;
+- deployed `geo` live acceptance with the exact Zapí URL returned `10.841487, 106.6778395`; temporary Auth test user cleanup PASS;
+- implementation commit `1740f0e` GitHub Actions CI SUCCESS and Vercel production Ready.
