@@ -177,6 +177,17 @@ export async function mockSupabase(
         return fulfill({ error: { code: "MFA_REQUIRED" } }, 403);
       if (body?.text === "quota")
         return fulfill({ error: { code: "RATE_LIMITED" } }, 429);
+      if (body?.action === "resolveGoogleMapsUrl")
+        return fulfill({
+          location: {
+            lat: 10.78,
+            lng: 106.7,
+            resolvedUrl: body.url,
+            method: "url",
+            name: null,
+            address: null,
+          },
+        });
       if (body?.action === "routeMatrix") {
         const sources = Array.isArray(body.sources) ? body.sources : [];
         const targets = Array.isArray(body.targets) ? body.targets : [];

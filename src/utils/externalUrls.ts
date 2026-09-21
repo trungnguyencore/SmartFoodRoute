@@ -17,8 +17,9 @@ export function safeGoogleMapsUrl(value: unknown): string | null {
   const safe = safeHttps(value);
   if (!safe) return null;
   const url = new URL(safe);
-  return (url.hostname === "www.google.com" &&
-    url.pathname.startsWith("/maps/")) ||
+  return ((url.hostname === "www.google.com" ||
+      url.hostname === "google.com") &&
+    (url.pathname === "/maps" || url.pathname.startsWith("/maps/"))) ||
     url.hostname === "maps.google.com" ||
     url.hostname === "maps.app.goo.gl" ||
     (url.hostname === "goo.gl" && url.pathname.startsWith("/maps/"))

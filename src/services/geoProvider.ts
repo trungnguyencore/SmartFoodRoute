@@ -8,13 +8,22 @@ import {
   type GeoRequest,
 } from "../../supabase/functions/_shared/geo";
 import {
+  googleMapsResolutionSchema,
+  type GoogleMapsResolution,
+} from "../../supabase/functions/_shared/googleMaps";
+import {
   routeMatrixResultSchema,
   routeResultSchema,
   type RouteMatrixResult,
   type RouteResult,
 } from "../../supabase/functions/_shared/routing";
 
-export type { GeoPlace, RouteMatrixResult, RouteResult };
+export type {
+  GeoPlace,
+  GoogleMapsResolution,
+  RouteMatrixResult,
+  RouteResult,
+};
 
 type RequestOf<A extends GeoRequest["action"]> = Omit<
   Extract<GeoRequest, { action: A }>,
@@ -39,6 +48,10 @@ export interface GeoProvider {
     input: { lat: number; lng: number },
     signal?: AbortSignal,
   ): Promise<GeoPlace | null>;
+  resolveGoogleMapsUrl(
+    url: string,
+    signal?: AbortSignal,
+  ): Promise<GoogleMapsResolution>;
   routeMatrix(
     input: RouteMatrixInput,
     signal?: AbortSignal,
@@ -140,6 +153,19 @@ export class SupabaseGeoClient implements GeoProvider {
         signal,
       ))[0] ?? null
     );
+  }
+
+  async resolveGoogleMapsUrl(url: string, signal?: AbortSignal) {
+    const parsed = z
+      .object({ location: googleMapsResolutionSchema })
+      .safeParse(
+        await this.call(
+          { action: "resolveGoogleMapsUrl", url, language: "vi" },
+          signal,
+        ),
+      );
+    if (!parsed.success) throw new GeoError(502);
+    return parsed.data.location;
   }
 
   async routeMatrix(input: RouteMatrixInput, signal?: AbortSignal) {

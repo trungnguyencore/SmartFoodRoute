@@ -43,12 +43,11 @@ export function PlaceDetailsSheet({
           <p>{place.address || "Chưa nhập địa chỉ"}</p>
           {place.needsLocation ? (
             <p className="notice">
-              Địa điểm cũ cần bổ sung tọa độ. Chọn Sửa địa điểm để hoàn tất.
+              Địa điểm cũ cần bổ sung vị trí. Chọn Sửa địa điểm rồi dán liên kết
+              Google Maps để hoàn tất.
             </p>
           ) : (
-            <p>
-              Tọa độ: {place.lat}, {place.lng}
-            </p>
+            <p className="muted">✓ Vị trí đã được xác định trên bản đồ.</p>
           )}
           {place.source === "geoapify" && (
             <section>

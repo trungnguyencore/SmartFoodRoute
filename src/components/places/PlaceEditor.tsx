@@ -6,8 +6,13 @@ import {
   type PlaceCategory,
   type SavedPlace,
 } from "../../domain/place";
-import type { GeoPlace } from "../../services/geoProvider";
+import {
+  geoProvider,
+  type GeoPlace,
+  type GoogleMapsResolution,
+} from "../../services/geoProvider";
 import { usePlaceMutations } from "../../hooks/usePlaces";
+import { safeGoogleMapsUrl } from "../../utils/externalUrls";
 export function PlaceEditor({
   source,
   providerPlace,
@@ -27,8 +32,59 @@ export function PlaceEditor({
   const [isPrivate, setPrivate] = useState(
     initial?.isPrivate ?? source === "custom",
   );
-  const [error, setError] = useState("");
   const values = initial ?? providerPlace;
+  const baseLocation =
+    values?.lat !== null &&
+    values?.lat !== undefined &&
+    values?.lng !== null &&
+    values?.lng !== undefined
+      ? { lat: values.lat, lng: values.lng }
+      : null;
+  const initialMapsUrl = initial?.googleMapsUrl ?? "";
+  const [googleMapsUrl, setGoogleMapsUrl] = useState(initialMapsUrl);
+  const [resolvedLocation, setResolvedLocation] =
+    useState<GoogleMapsResolution | null>(
+      baseLocation
+        ? {
+            ...baseLocation,
+            resolvedUrl: initialMapsUrl,
+            method: "url",
+            name: values?.name ?? null,
+            address: values?.address ?? null,
+          }
+        : null,
+    );
+  const [resolvedForUrl, setResolvedForUrl] = useState(initialMapsUrl);
+  const [resolving, setResolving] = useState(false);
+  const [error, setError] = useState("");
+
+  const resolveMapsUrl = async (
+    rawUrl = googleMapsUrl,
+  ): Promise<GoogleMapsResolution | null> => {
+    const normalized = safeGoogleMapsUrl(rawUrl.trim());
+    if (!normalized) {
+      setError("Dán liên kết Google Maps HTTPS hợp lệ.");
+      return null;
+    }
+    setResolving(true);
+    setError("");
+    try {
+      const location = await geoProvider.resolveGoogleMapsUrl(normalized);
+      setGoogleMapsUrl(normalized);
+      setResolvedLocation(location);
+      setResolvedForUrl(normalized);
+      return location;
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Chưa xác định được vị trí từ liên kết Google Maps.",
+      );
+      return null;
+    } finally {
+      setResolving(false);
+    }
+  };
   return (
     <form
       onSubmit={async (event) => {
@@ -39,6 +95,34 @@ export function PlaceEditor({
           String(form.get(key) ?? "").trim() || null;
         const numeric = (key: string) =>
           text(key) === null ? null : Number(text(key));
+        const mapsUrl = text("googleMapsUrl");
+        const normalizedMapsUrl = mapsUrl ? safeGoogleMapsUrl(mapsUrl) : null;
+        if (mapsUrl && !normalizedMapsUrl) {
+          setError("Dán liên kết Google Maps HTTPS hợp lệ.");
+          return;
+        }
+
+        let location = baseLocation;
+        const needsResolution =
+          !location || (source === "custom" && !!normalizedMapsUrl);
+        if (needsResolution) {
+          if (!normalizedMapsUrl) {
+            setError(
+              "Dán liên kết Google Maps để hệ thống tự xác định vị trí.",
+            );
+            return;
+          }
+          location =
+            resolvedLocation && resolvedForUrl === normalizedMapsUrl
+              ? resolvedLocation
+              : await resolveMapsUrl(normalizedMapsUrl);
+          if (!location) return;
+        }
+        if (!location) {
+          setError("Chưa xác định được vị trí của địa điểm.");
+          return;
+        }
+
         const parsed = placeDraftSchema.safeParse({
           source,
           category,
@@ -48,8 +132,8 @@ export function PlaceEditor({
               : null,
           name: text("label"),
           address: text("address"),
-          lat: numeric("lat"),
-          lng: numeric("lng"),
+          lat: location.lat,
+          lng: location.lng,
           subCategory: text("subCategory"),
           estimatedCostPerPerson: numeric("budget"),
           averageTimeSpentMinutes: numeric("duration") ?? 60,
@@ -60,7 +144,7 @@ export function PlaceEditor({
             .filter(Boolean),
           isFavorite: form.get("favorite") === "on",
           isPrivate,
-          googleMapsUrl: text("googleMapsUrl"),
+          googleMapsUrl: normalizedMapsUrl,
           sourceName:
             source === "geoapify"
               ? "Geoapify / OpenStreetMap"
@@ -85,8 +169,8 @@ export function PlaceEditor({
     >
       {initial?.needsLocation && (
         <p className="notice">
-          Địa điểm cũ chưa có tọa độ. Bổ sung tên và vị trí thực để dùng trên
-          bản đồ; ghi chú của bạn vẫn được giữ.
+          Địa điểm cũ chưa có vị trí. Dán liên kết Google Maps để hệ thống tự
+          xác định; ghi chú của bạn vẫn được giữ.
         </p>
       )}
       <label>
@@ -124,35 +208,47 @@ export function PlaceEditor({
           maxLength={500}
         />
       </label>
-      <div className="two-columns">
-        <label>
-          Vĩ độ
-          <input
-            name="lat"
-            type="number"
-            step="any"
-            min={-90}
-            max={90}
-            defaultValue={values?.lat ?? ""}
-            required
-          />
-        </label>
-        <label>
-          Kinh độ
-          <input
-            name="lng"
-            type="number"
-            step="any"
-            min={-180}
-            max={180}
-            defaultValue={values?.lng ?? ""}
-            required
-          />
-        </label>
-      </div>
+      <label>
+        {source === "custom" && !baseLocation
+          ? "Liên kết Google Maps"
+          : "Liên kết Google Maps (không bắt buộc)"}
+        <input
+          name="googleMapsUrl"
+          type="url"
+          maxLength={2048}
+          value={googleMapsUrl}
+          onChange={(event) => setGoogleMapsUrl(event.target.value)}
+          required={source === "custom" && !baseLocation}
+          placeholder="https://maps.app.goo.gl/…"
+        />
+      </label>
+      {(source === "custom" || !baseLocation) && (
+        <div className="stack">
+          <button
+            type="button"
+            className="secondary"
+            disabled={resolving || !googleMapsUrl.trim()}
+            onClick={() => void resolveMapsUrl()}
+          >
+            {resolving ? "Đang tìm vị trí…" : "Xác định vị trí"}
+          </button>
+          {resolvedLocation &&
+            safeGoogleMapsUrl(googleMapsUrl.trim()) === resolvedForUrl && (
+              <p role="status" className="notice">
+                ✓ Đã xác định vị trí
+                {resolvedLocation.name
+                  ? `: ${resolvedLocation.name}`
+                  : " từ Google Maps"}
+                {resolvedLocation.address
+                  ? ` — ${resolvedLocation.address}`
+                  : "."}
+              </p>
+            )}
+        </div>
+      )}
       <p className="muted">
-        Tọa độ chính xác chỉ được công khai trong tour nếu bạn cho phép. Điểm
-        đón luôn được ẩn khi chia sẻ.
+        Bạn chỉ cần dán liên kết Google Maps; hệ thống sẽ tự lấy vị trí để dùng
+        cho bản đồ và Planner. Vị trí điểm đón vẫn được ẩn khi chia sẻ tour.
       </p>
       <label className="checkbox">
         <input
@@ -217,23 +313,15 @@ export function PlaceEditor({
         Nhãn, ngăn cách bằng dấu phẩy
         <input name="tags" defaultValue={initial?.tags.join(", ") ?? ""} />
       </label>
-      <label>
-        Liên kết Google Maps (không bắt buộc)
-        <input
-          name="googleMapsUrl"
-          type="url"
-          maxLength={2048}
-          defaultValue={initial?.googleMapsUrl ?? ""}
-          placeholder="https://www.google.com/maps/…"
-        />
-      </label>
-      <p className="muted">Liên kết đánh giá sẽ bị ẩn với địa điểm riêng tư.</p>
+      <p className="muted">
+        Liên kết Google Maps sẽ bị ẩn với địa điểm riêng tư.
+      </p>
       {error && (
         <p role="alert" className="error">
           {error}
         </p>
       )}
-      <button disabled={save.isPending}>
+      <button disabled={save.isPending || resolving}>
         {save.isPending
           ? "Đang lưu…"
           : initial

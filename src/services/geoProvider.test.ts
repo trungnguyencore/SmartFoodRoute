@@ -82,6 +82,35 @@ describe("authenticated frontend Geo client — HTTP doubles", () => {
     });
   });
 
+  it("resolves Google Maps links through the authenticated Edge endpoint", async () => {
+    fetchMock.mockResolvedValueOnce(
+      Response.json({
+        location: {
+          lat: 10.78,
+          lng: 106.7,
+          resolvedUrl: "https://www.google.com/maps/@10.78,106.7,17z",
+          method: "url",
+          name: null,
+          address: null,
+        },
+      }),
+    );
+    const location = await client.resolveGoogleMapsUrl(
+      "https://www.google.com/maps/@10.78,106.7,17z",
+    );
+    expect(location).toMatchObject({ lat: 10.78, lng: 106.7, method: "url" });
+    expect(String(fetchMock.mock.calls[0]?.[1].body)).toContain(
+      '"action":"resolveGoogleMapsUrl"',
+    );
+
+    fetchMock.mockResolvedValueOnce(Response.json({ location: { raw: true } }));
+    await expect(
+      client.resolveGoogleMapsUrl(
+        "https://www.google.com/maps/@10.78,106.7,17z",
+      ),
+    ).rejects.toMatchObject({ status: 502 });
+  });
+
   it("parses Route Matrix through the authenticated Edge endpoint", async () => {
     fetchMock.mockResolvedValue(
       Response.json({

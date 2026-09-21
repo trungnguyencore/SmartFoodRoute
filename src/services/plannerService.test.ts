@@ -89,6 +89,7 @@ function provider(
     searchPlaces: vi.fn(),
     placeDetails: vi.fn(),
     reverseGeocode: vi.fn(),
+    resolveGoogleMapsUrl: vi.fn(),
     routeMatrix: vi.fn(async ({ sources }) => uniformMatrix(sources.length)),
     route: vi.fn(async () => ({
       distanceMeters: 3000,

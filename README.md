@@ -14,7 +14,7 @@ Read [PROGRESS.md](PROGRESS.md) first for verified status, external blockers and
 - Planner with Haversine prefilter, fixed-time scheduling, Top 3 ranking, timeline and budget; provider failures are explicitly marked unverified rather than silently trusted.
 - ShowtimeProvider abstraction with a manual fixed-showtime fallback; no Moveek scraping/bypass is used without a permitted feed/adapter.
 - Phase 9 adds transactional saved-tour snapshots, expiring share tokens, QR sharing, revocation and an anonymous public route backed only by the redacted `get_shared_tour` RPC.
-- Google Maps is an external HTTPS search/review link only. No Google Maps Platform SDK, API key, Map ID, Places request or Routes request exists.
+- Google Maps remains link-only: users can paste an allowlisted Google Maps/share URL and the authenticated `geo` Edge Function extracts coordinates (following only bounded Google Maps redirects) or falls back to Geoapify text geocoding. No Google Maps Platform SDK, API key, Map ID, Places request or Routes request exists.
 
 ## Production deployment
 
@@ -48,7 +48,7 @@ npx supabase functions deploy geo --use-api --import-map supabase/functions/deno
 npx supabase functions deploy auth-totp --no-verify-jwt
 ```
 
-`GEOAPIFY_API_KEY` is server-only. The Edge Function validates the action-specific schema, verifies the user and verified TOTP/AAL2 state, enforces an atomic per-user quota, fixes the upstream host/path, normalizes responses, and suppresses provider/internal error bodies.
+`GEOAPIFY_API_KEY` is server-only. The Edge Function validates the action-specific schema, verifies the user and verified TOTP/AAL2 state, enforces an atomic per-user quota, fixes the upstream host/path, normalizes responses, and suppresses provider/internal error bodies. Google Maps link resolution accepts only HTTPS Google Maps hosts, caps redirects, rejects redirect escapes, and stores the resulting coordinates internally so users never need to type latitude/longitude.
 
 Enable TOTP and keep the production origin in `ALLOWED_ORIGINS`. The user-facing login flow does not use passwords, password recovery, email OTP or magic-link delivery. The server-side bootstrap uses Supabase Auth internally and never returns its AAL1 session to the browser. Production origins and provider-key restrictions live outside the repository.
 

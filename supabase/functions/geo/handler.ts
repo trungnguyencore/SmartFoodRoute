@@ -4,6 +4,12 @@ import {
   normalizeGeoapify,
 } from "../_shared/geo.ts";
 import {
+  coordinatesFromGoogleMapsUrl,
+  googleMapsResolutionSchema,
+  lookupTextFromGoogleMapsUrl,
+  resolveGoogleMapsRedirects,
+} from "../_shared/googleMaps.ts";
+import {
   buildRouteMatrixUpstream,
   buildRouteUpstream,
   normalizeRoute,
@@ -88,6 +94,63 @@ export function createGeoHandler(deps: GeoDependencies) {
     } // Fail closed; never bypass quota.
     try {
       const input = parsed.data;
+      if (input.action === "resolveGoogleMapsUrl") {
+        const resolvedUrl = await resolveGoogleMapsRedirects(
+          input.url,
+          deps.fetch,
+        );
+        const direct = coordinatesFromGoogleMapsUrl(resolvedUrl);
+        if (direct) {
+          const location = googleMapsResolutionSchema.parse({
+            ...direct,
+            resolvedUrl,
+            method: "url",
+            name: null,
+            address: null,
+          });
+          return new Response(JSON.stringify({ location }), {
+            status: 200,
+            headers,
+          });
+        }
+
+        const lookupText = lookupTextFromGoogleMapsUrl(resolvedUrl);
+        if (!lookupText) return fail(404, "PLACE_NOT_FOUND");
+        const providerUrl = geoapifyUrl(
+          {
+            action: "autocomplete",
+            text: lookupText,
+            limit: 1,
+            language: input.language,
+          },
+          deps.apiKey,
+        );
+        const providerResponse = await deps.fetch(providerUrl, {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          signal: AbortSignal.timeout(8000),
+          redirect: "error",
+        });
+        if (providerResponse.status === 429)
+          return fail(429, "PROVIDER_RATE_LIMITED");
+        if (!providerResponse.ok) return fail(502, "PROVIDER_UNAVAILABLE");
+        const places = normalizeGeoapify(await providerResponse.json());
+        const place = places[0];
+        if (!place) return fail(404, "PLACE_NOT_FOUND");
+        const location = googleMapsResolutionSchema.parse({
+          lat: place.lat,
+          lng: place.lng,
+          resolvedUrl,
+          method: "geoapify",
+          name: place.name,
+          address: place.address,
+        });
+        return new Response(JSON.stringify({ location }), {
+          status: 200,
+          headers,
+        });
+      }
+
       const upstream =
         input.action === "routeMatrix"
           ? buildRouteMatrixUpstream(input, deps.apiKey)

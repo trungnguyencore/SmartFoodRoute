@@ -3,6 +3,7 @@ import {
   routeMatrixRequestSchema,
   routeRequestSchema,
 } from "./routing.ts";
+import { isGoogleMapsUrl } from "./googleMaps.ts";
 export const latLngSchema = z
   .object({
     lat: z.number().min(-90).max(90),
@@ -54,6 +55,13 @@ export const geoRequestSchema = z.discriminatedUnion("action", [
     .object({
       action: z.literal("reverseGeocode"),
       ...latLngSchema.shape,
+      language,
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("resolveGoogleMapsUrl"),
+      url: z.string().trim().max(2048).refine(isGoogleMapsUrl),
       language,
     })
     .strict(),
@@ -143,8 +151,12 @@ export function geoapifyUrl(
   input: z.output<typeof geoRequestSchema>,
   key: string,
 ): URL {
-  if (input.action === "routeMatrix" || input.action === "route")
-    throw new Error("Routing requests use dedicated builders");
+  if (
+    input.action === "routeMatrix" ||
+    input.action === "route" ||
+    input.action === "resolveGoogleMapsUrl"
+  )
+    throw new Error("Request uses a dedicated handler");
   const endpoints = {
     autocomplete: "/v1/geocode/autocomplete",
     places: "/v2/places",

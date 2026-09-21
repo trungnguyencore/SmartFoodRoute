@@ -28,8 +28,17 @@ test("mocked SDK journey: login, reject wrong TOTP, AAL2, custom CRUD and reload
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByLabel("Đây là địa điểm riêng tư")).toBeChecked();
   await dialog.getByLabel("Tên địa điểm", { exact: true }).fill("Nhà tôi");
-  await dialog.getByLabel("Vĩ độ", { exact: true }).fill("10.78");
-  await dialog.getByLabel("Kinh độ", { exact: true }).fill("106.7");
+  await expect(dialog.getByLabel("Vĩ độ", { exact: true })).toHaveCount(0);
+  await expect(dialog.getByLabel("Kinh độ", { exact: true })).toHaveCount(0);
+  await dialog
+    .getByLabel("Liên kết Google Maps", { exact: true })
+    .fill("https://www.google.com/maps/@10.78,106.7,17z");
+  await dialog
+    .getByRole("button", { name: "Xác định vị trí", exact: true })
+    .click();
+  await expect(dialog.getByRole("status")).toContainText(
+    "Đã xác định vị trí",
+  );
   await dialog.getByLabel("Ghi chú của bạn").fill("Ghi chú riêng");
   await dialog
     .getByRole("button", { name: "Lưu địa điểm", exact: true })
@@ -41,6 +50,7 @@ test("mocked SDK journey: login, reject wrong TOTP, AAL2, custom CRUD and reload
     provider_place_id: null,
     lat: 10.78,
     lng: 106.7,
+    google_maps_url: "https://www.google.com/maps/@10.78,106.7,17z",
   });
   await page.getByRole("button", { name: "Đóng", exact: true }).click();
   await page.reload();
