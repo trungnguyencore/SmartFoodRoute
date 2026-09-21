@@ -101,4 +101,3 @@ export function isMeaningfulCustomPlaceDraft(
 export function hasCustomPlaceDraft() {
   return isMeaningfulCustomPlaceDraft(loadCustomPlaceDraft());
 }
-
