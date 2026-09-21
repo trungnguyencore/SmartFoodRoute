@@ -4,6 +4,11 @@ import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { AuthProvider } from "./AuthProvider";
 import { useAuth } from "../../hooks/useAuth";
 import { queryClient } from "../../lib/queryClient";
+import {
+  emptyCustomPlaceDraft,
+  hasCustomPlaceDraft,
+  saveCustomPlaceDraft,
+} from "../../utils/customPlaceDraft";
 const sdk = vi.hoisted(() => ({
   session: null as Session | null,
   level: "aal1",
@@ -60,6 +65,7 @@ beforeEach(() => {
   sdk.next = "aal2";
   sdk.fail = false;
   queryClient.clear();
+  sessionStorage.clear();
 });
 it("session lifecycle: sign-in → AAL1 → MFA → AAL2 → sign-out clears cached data", async () => {
   render(
@@ -79,12 +85,15 @@ it("session lifecycle: sign-in → AAL1 → MFA → AAL2 → sign-out clears cac
   });
   await screen.findByText("ready");
   queryClient.setQueryData(["private"], "private test data");
+  saveCustomPlaceDraft({ ...emptyCustomPlaceDraft, name: "Nháp riêng" });
+  expect(hasCustomPlaceDraft()).toBe(true);
   act(() => {
     sdk.session = null;
     sdk.listener("SIGNED_OUT", null);
   });
   await screen.findByText("signed-out");
   expect(queryClient.getQueryData(["private"])).toBeUndefined();
+  expect(hasCustomPlaceDraft()).toBe(false);
 });
 it("assurance lookup failures never admit the dashboard", async () => {
   sdk.session = session;
@@ -107,13 +116,37 @@ it("same-user token refresh keeps ready UI and private query cache mounted", asy
   );
   await screen.findByText("ready");
   queryClient.setQueryData(["private"], "private test data");
+  saveCustomPlaceDraft({ ...emptyCustomPlaceDraft, name: "Nháp cùng user" });
   act(() => {
     sdk.listener("TOKEN_REFRESHED", session);
   });
   expect(screen.getByText("ready")).toBeInTheDocument();
   expect(queryClient.getQueryData(["private"])).toBe("private test data");
+  expect(hasCustomPlaceDraft()).toBe(true);
   await waitFor(() => expect(screen.getByText("ready")).toBeInTheDocument());
   expect(queryClient.getQueryData(["private"])).toBe("private test data");
+  expect(hasCustomPlaceDraft()).toBe(true);
+});
+
+it("switching users clears a private place draft", async () => {
+  sdk.session = session;
+  sdk.level = "aal2";
+  render(
+    <AuthProvider>
+      <Consumer />
+    </AuthProvider>,
+  );
+  await screen.findByText("ready");
+  saveCustomPlaceDraft({ ...emptyCustomPlaceDraft, name: "Nháp user A" });
+  const otherSession = {
+    ...session,
+    user: { ...session.user, id: "other-user" },
+  } as Session;
+  act(() => {
+    sdk.listener("SIGNED_IN", otherSession);
+  });
+  expect(hasCustomPlaceDraft()).toBe(false);
+  await screen.findByText("ready");
 });
 
 it("JWT downgrade after a token refresh closes private access", async () => {

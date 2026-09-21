@@ -10,6 +10,7 @@ import { getSupabase } from "../../lib/supabase";
 import { queryClient } from "../../lib/queryClient";
 import { AuthContext, type AuthState } from "./context";
 import { decideAccess } from "./authState";
+import { clearCustomPlaceDraft } from "../../utils/customPlaceDraft";
 
 const initial: AuthState = {
   session: null,
@@ -89,6 +90,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [resolve, invalidate]);
   const logout = useCallback(async () => {
     invalidate();
+    clearCustomPlaceDraft();
     await queryClient.cancelQueries();
     queryClient.clear();
     setState({ ...initial, loading: false });
@@ -115,6 +117,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
           event === "SIGNED_IN" ||
           event === "USER_UPDATED" ||
           event === "MFA_CHALLENGE_VERIFIED");
+      const userChanged =
+        !!previous.session?.user.id &&
+        previous.session.user.id !== session?.user.id;
+      if (event === "SIGNED_OUT" || userChanged) clearCustomPlaceDraft();
 
       // Never await an Auth method while Supabase's session lock is held.
       // Routine same-user refresh events keep private UI mounted while AAL2
