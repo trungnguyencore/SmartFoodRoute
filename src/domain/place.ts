@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { safeGoogleMapsUrl } from "../utils/externalUrls";
 export const categories = {
-  food: { label: "Ăn uống", icon: "🍜", color: "#bc381c" },
+  food: { label: "Ăn", icon: "🍜", color: "#bc381c" },
+  drink: { label: "Uống", icon: "🥤", color: "#31708f" },
   cafe: { label: "Cà phê", icon: "☕", color: "#8b572a" },
   cinema: { label: "Rạp phim", icon: "🎬", color: "#7042b6" },
   entertainment: { label: "Vui chơi", icon: "🎡", color: "#936500" },
@@ -18,6 +19,7 @@ export interface MapPlace {
 }
 export const categorySchema = z.enum([
   "food",
+  "drink",
   "cafe",
   "cinema",
   "entertainment",
@@ -57,6 +59,12 @@ export const placeDraftSchema = z.object(fields).superRefine((p, ctx) => {
       code: "custom",
       path: ["providerPlaceId"],
       message: "Mã nhà cung cấp không phù hợp",
+    });
+  if (p.category === "other" && !p.subCategory)
+    ctx.addIssue({
+      code: "custom",
+      path: ["subCategory"],
+      message: "Nhập tên loại cụ thể khi chọn Khác",
     });
 });
 export type PlaceDraft = z.infer<typeof placeDraftSchema>;
@@ -112,6 +120,15 @@ export const savedPlaceRowSchema = z
   }));
 export function inferCategory(values: string[]): PlaceCategory {
   if (values.some((c) => c.startsWith("catering.cafe"))) return "cafe";
+  if (
+    values.some(
+      (c) =>
+        c.startsWith("catering.bar") ||
+        c.startsWith("catering.pub") ||
+        c.startsWith("catering.biergarten"),
+    )
+  )
+    return "drink";
   if (values.some((c) => c.startsWith("catering"))) return "food";
   if (values.some((c) => c.startsWith("entertainment.cinema"))) return "cinema";
   if (

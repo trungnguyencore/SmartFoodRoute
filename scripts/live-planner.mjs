@@ -179,6 +179,20 @@ try {
     {
       user_id: userId,
       source: "custom",
+      category: "drink",
+      name: "Live Drink",
+      lat: 10.779,
+      lng: 106.705,
+      average_time_spent_minutes: 30,
+      estimated_cost_per_person: 50000,
+      custom_tags: [],
+      is_favorite: false,
+      is_private: false,
+      needs_location: false,
+    },
+    {
+      user_id: userId,
+      source: "custom",
       category: "cinema",
       name: "Live Cinema",
       lat: 10.782,
@@ -208,6 +222,15 @@ try {
   if (inserted.error)
     console.error("Planner seed error code " + (inserted.error.code ?? "unknown"));
   requirePass(!inserted.error, "temporary Planner places seeded");
+  const drinkRead = await client
+    .from("saved_places")
+    .select("category")
+    .eq("name", "Live Drink")
+    .single();
+  requirePass(
+    !drinkRead.error && drinkRead.data?.category === "drink",
+    "live drink category persists through AAL2 RLS",
+  );
   await client.auth.signOut({ scope: "local" });
 
   browser = await chromium.launch({ headless: true });
@@ -247,6 +270,16 @@ try {
   await page
     .getByRole("heading", { name: "Những nơi muốn ghé." })
     .waitFor({ timeout: 30000 });
+  await page
+    .locator(".place-card-button")
+    .filter({ hasText: "Live Drink" })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByText(/🥤\s*Uống/)
+    .waitFor({ timeout: 30000 });
+  requirePass(true, "browser renders live drink category label");
+  await page.getByRole("button", { name: "Đóng", exact: true }).click();
   await page.locator(".maplibregl-canvas").waitFor({
     state: "visible",
     timeout: 30000,

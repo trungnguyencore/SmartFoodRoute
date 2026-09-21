@@ -30,17 +30,65 @@ test("mocked SDK journey: login, reject wrong TOTP, AAL2, custom CRUD and reload
   await dialog.getByLabel("Tên địa điểm", { exact: true }).fill("Nhà tôi");
   await expect(dialog.getByLabel("Vĩ độ", { exact: true })).toHaveCount(0);
   await expect(dialog.getByLabel("Kinh độ", { exact: true })).toHaveCount(0);
+  const category = dialog.getByRole("combobox", {
+    name: "Danh mục",
+    exact: true,
+  });
+  const categoryOptions = await category.evaluate((select) =>
+    Array.from((select as HTMLSelectElement).options).map((option) => ({
+      value: option.value,
+      text: option.textContent?.trim() ?? "",
+    })),
+  );
+  expect(categoryOptions).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ value: "food", text: expect.stringMatching(/Ăn$/) }),
+      expect.objectContaining({
+        value: "drink",
+        text: expect.stringMatching(/Uống$/),
+      }),
+    ]),
+  );
+  expect(categoryOptions.some((option) => option.text.includes("Ăn uống"))).toBe(
+    false,
+  );
+  await category.selectOption("other");
+  await dialog
+    .getByLabel("Tên loại cụ thể", { exact: true })
+    .fill("Tiệm hoa");
   await dialog
     .getByLabel("Liên kết Google Maps", { exact: true })
     .fill("https://www.google.com/maps/@10.78,106.7,17z");
-  await dialog
+  await dialog.getByLabel("Ghi chú của bạn").fill("Ghi chú riêng");
+
+  await page.reload();
+  const restoredDialog = page.getByRole("dialog");
+  await expect(restoredDialog).toBeVisible();
+  await expect(
+    restoredDialog.getByLabel("Tên địa điểm", { exact: true }),
+  ).toHaveValue("Nhà tôi");
+  await expect(
+    restoredDialog.getByRole("combobox", {
+      name: "Danh mục",
+      exact: true,
+    }),
+  ).toHaveValue("other");
+  await expect(
+    restoredDialog.getByLabel("Tên loại cụ thể", { exact: true }),
+  ).toHaveValue("Tiệm hoa");
+  await expect(
+    restoredDialog.getByLabel("Liên kết Google Maps", { exact: true }),
+  ).toHaveValue("https://www.google.com/maps/@10.78,106.7,17z");
+  await expect(restoredDialog.getByLabel("Ghi chú của bạn")).toHaveValue(
+    "Ghi chú riêng",
+  );
+  await restoredDialog
     .getByRole("button", { name: "Xác định vị trí", exact: true })
     .click();
-  await expect(dialog.getByRole("status")).toContainText(
+  await expect(restoredDialog.getByRole("status")).toContainText(
     "Đã xác định vị trí",
   );
-  await dialog.getByLabel("Ghi chú của bạn").fill("Ghi chú riêng");
-  await dialog
+  await restoredDialog
     .getByRole("button", { name: "Lưu địa điểm", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toContainText("Nhà tôi");
@@ -48,6 +96,8 @@ test("mocked SDK journey: login, reject wrong TOTP, AAL2, custom CRUD and reload
     source: "custom",
     is_private: true,
     provider_place_id: null,
+    category: "other",
+    sub_category: "Tiệm hoa",
     lat: 10.78,
     lng: 106.7,
     google_maps_url: "https://www.google.com/maps/@10.78,106.7,17z",

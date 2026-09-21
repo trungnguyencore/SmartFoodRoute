@@ -32,7 +32,8 @@ function localDateTime(date: Date) {
 }
 
 const labels: Record<ActivityCategory, string> = {
-  food: "Ăn uống",
+  food: "Ăn",
+  drink: "Uống",
   cafe: "Cà phê",
   cinema: "Rạp phim",
   entertainment: "Vui chơi / photobooth",
@@ -40,8 +41,8 @@ const labels: Record<ActivityCategory, string> = {
 };
 
 const orderPresets = {
-  before: ["food", "entertainment", "cinema", "cafe", "other"],
-  after: ["food", "cinema", "entertainment", "cafe", "other"],
+  before: ["food", "drink", "entertainment", "cinema", "cafe", "other"],
+  after: ["food", "cinema", "entertainment", "drink", "cafe", "other"],
 } satisfies Record<string, ActivityCategory[]>;
 
 const initialCinema: CinemaDraft = {

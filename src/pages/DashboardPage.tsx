@@ -14,6 +14,7 @@ import { usePlannerStore } from "../stores/plannerStore";
 import type { MapPlace, SavedPlace } from "../domain/place";
 import type { GeoPlace } from "../services/geoProvider";
 import { MapPin, Plus, Search } from "lucide-react";
+import { hasCustomPlaceDraft } from "../utils/customPlaceDraft";
 export function DashboardPage() {
   const auth = useAuth();
   const [page, setPage] = useState(0);
@@ -26,7 +27,7 @@ export function DashboardPage() {
   const activeRoute =
     plannerResult?.candidates[plannerSelectedIndex]?.route ?? null;
   const [search, setSearch] = useState(false);
-  const [custom, setCustom] = useState(false);
+  const [custom, setCustom] = useState(() => hasCustomPlaceDraft());
   const [providerPlace, setProviderPlace] = useState<GeoPlace | null>(null);
   const [message, setMessage] = useState("");
   const selectedId = useMapStore((s) => s.selectedId);

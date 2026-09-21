@@ -16,7 +16,10 @@ export function PlaceCard({
       <span>
         <strong>{place.name}</strong>
         <span className="muted">
-          {place.address || categories[place.category].label}
+          {place.address ||
+            (place.category === "other" && place.subCategory
+              ? place.subCategory
+              : categories[place.category].label)}
         </span>
         <span className="muted">
           {place.isPrivate ? "Riêng tư" : "Địa điểm công khai"}

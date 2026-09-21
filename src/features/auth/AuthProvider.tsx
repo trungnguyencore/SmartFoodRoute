@@ -20,9 +20,13 @@ const initial: AuthState = {
 };
 export function AuthProvider({ children }: PropsWithChildren) {
   const [state, setState] = useState<AuthState>(initial);
+  const stateRef = useRef<AuthState>(initial);
   const generation = useRef(0);
   const invalidate = useCallback(() => ++generation.current, []);
   const mounted = useRef(false);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
   const resolve = useCallback(
     async (session: Session | null, ticket: number) => {
       try {
@@ -42,7 +46,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
           if (access === "signed-out")
             throw new Error("Unrecognized session assurance");
         }
-        if (mounted.current && ticket === generation.current)
+        if (mounted.current && ticket === generation.current) {
+          if (access !== "ready") queryClient.clear();
           setState((old) => ({
             ...old,
             session,
@@ -50,6 +55,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             loading: false,
             error: null,
           }));
+        }
       } catch {
         if (mounted.current && ticket === generation.current) {
           queryClient.clear();
@@ -98,22 +104,27 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const timers = new Set<ReturnType<typeof setTimeout>>();
     const { data } = getSupabase().auth.onAuthStateChange((event, session) => {
       const ticket = invalidate();
+      const previous = stateRef.current;
+      const sameReadyUser =
+        !!session &&
+        previous.access === "ready" &&
+        previous.session?.user.id === session.user.id;
+      const preserveReady =
+        sameReadyUser &&
+        (event === "TOKEN_REFRESHED" ||
+          event === "SIGNED_IN" ||
+          event === "USER_UPDATED" ||
+          event === "MFA_CHALLENGE_VERIFIED");
+
       // Never await an Auth method while Supabase's session lock is held.
-      queryClient.clear();
+      // Routine same-user refresh events keep private UI mounted while AAL2
+      // is revalidated in the deferred resolve() call below.
+      if (!preserveReady) queryClient.clear();
       setState((old) => ({
         ...old,
         session,
-        access:
-          event === "MFA_CHALLENGE_VERIFIED" &&
-          old.access === "ready" &&
-          session?.user.id === old.session?.user.id
-            ? "ready"
-            : "signed-out",
-        loading: !(
-          event === "MFA_CHALLENGE_VERIFIED" &&
-          old.access === "ready" &&
-          session?.user.id === old.session?.user.id
-        ),
+        access: preserveReady ? "ready" : "signed-out",
+        loading: !preserveReady,
         error: null,
         recovery:
           event === "PASSWORD_RECOVERY" ||
@@ -139,17 +150,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
     if (!expiry) return;
     const timer = setTimeout(
       () => {
-        setState((old) => ({ ...old, loading: true, access: "signed-out" }));
-        queryClient.clear();
         void getSupabase()
           .auth.refreshSession()
-          .then(({ error }) => (error ? logout() : refresh()))
-          .catch(() => logout());
+          .then(({ error }) => {
+            if (error) void logout();
+          })
+          .catch(() => void logout());
       },
-      Math.max(0, expiry * 1000 - Date.now()),
+      Math.max(0, expiry * 1000 - Date.now() - 30_000),
     );
     return () => clearTimeout(timer);
-  }, [state.session?.expires_at, refresh, logout]);
+  }, [state.session?.expires_at, logout]);
   return (
     <AuthContext.Provider
       value={{

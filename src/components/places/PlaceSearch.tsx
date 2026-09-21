@@ -6,6 +6,7 @@ import { geoProvider, type GeoPlace } from "../../services/geoProvider";
 import { Attributions } from "./Attributions";
 const browseCategories = {
   food: ["catering.restaurant", "catering.fast_food", "catering.food_court"],
+  drink: ["catering.bar", "catering.pub", "catering.biergarten"],
   cafe: ["catering.cafe"],
   cinema: ["entertainment.cinema"],
   entertainment: ["entertainment", "leisure"],
@@ -140,7 +141,8 @@ export function PlaceSearch({
             }}
           >
             <option value="">Chọn danh mục</option>
-            <option value="food">Ăn uống</option>
+            <option value="food">Ăn</option>
+            <option value="drink">Uống</option>
             <option value="cafe">Cà phê</option>
             <option value="cinema">Rạp phim</option>
             <option value="entertainment">Vui chơi</option>

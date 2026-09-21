@@ -97,6 +97,25 @@ it("assurance lookup failures never admit the dashboard", async () => {
   await screen.findByText("error");
   expect(screen.queryByText("ready")).not.toBeInTheDocument();
 });
+it("same-user token refresh keeps ready UI and private query cache mounted", async () => {
+  sdk.session = session;
+  sdk.level = "aal2";
+  render(
+    <AuthProvider>
+      <Consumer />
+    </AuthProvider>,
+  );
+  await screen.findByText("ready");
+  queryClient.setQueryData(["private"], "private test data");
+  act(() => {
+    sdk.listener("TOKEN_REFRESHED", session);
+  });
+  expect(screen.getByText("ready")).toBeInTheDocument();
+  expect(queryClient.getQueryData(["private"])).toBe("private test data");
+  await waitFor(() => expect(screen.getByText("ready")).toBeInTheDocument());
+  expect(queryClient.getQueryData(["private"])).toBe("private test data");
+});
+
 it("JWT downgrade after a token refresh closes private access", async () => {
   sdk.session = session;
   sdk.level = "aal2";

@@ -14,7 +14,11 @@ import {
   buildGoogleMapsSearchUrl,
   safeGoogleMapsUrl,
 } from "../utils/externalUrls";
-import { inferCategory, type PlaceDraft } from "../domain/place";
+import {
+  inferCategory,
+  placeDraftSchema,
+  type PlaceDraft,
+} from "../domain/place";
 const mocks = vi.hoisted(() => ({ from: vi.fn() }));
 vi.mock("../lib/supabase", () => ({
   getSupabase: () => ({ from: mocks.from }),
@@ -161,8 +165,27 @@ describe("Geoapify normalization contracts — not live", () => {
   });
   it("maps categories conservatively", () => {
     expect(inferCategory(["catering.cafe"])).toBe("cafe");
+    expect(inferCategory(["catering.bar"])).toBe("drink");
+    expect(inferCategory(["catering.pub"])).toBe("drink");
+    expect(inferCategory(["catering.restaurant"])).toBe("food");
     expect(inferCategory(["entertainment.cinema"])).toBe("cinema");
     expect(inferCategory([])).toBe("other");
+  });
+  it("requires a specific type name for new Other drafts", () => {
+    expect(
+      placeDraftSchema.safeParse({
+        ...draft,
+        category: "other",
+        subCategory: null,
+      }).success,
+    ).toBe(false);
+    expect(
+      placeDraftSchema.safeParse({
+        ...draft,
+        category: "other",
+        subCategory: "Tiệm hoa",
+      }).success,
+    ).toBe(true);
   });
   it("uses bounded URLs and Vietnamese/map-center bias", () => {
     const input = geoRequestSchema.parse({

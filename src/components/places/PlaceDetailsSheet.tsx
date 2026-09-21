@@ -37,7 +37,10 @@ export function PlaceDetailsSheet({
       ) : (
         <div className="stack">
           <p className="muted">
-            {categories[place.category].icon} {categories[place.category].label}{" "}
+            {categories[place.category].icon} {categories[place.category].label}
+            {place.category === "other" && place.subCategory
+              ? ` · ${place.subCategory}`
+              : ""}{" "}
             · {place.isPrivate ? "Riêng tư" : "Có thể chia sẻ trong tour"}
           </p>
           <p>{place.address || "Chưa nhập địa chỉ"}</p>

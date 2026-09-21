@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   categories,
   inferCategory,
@@ -13,6 +13,12 @@ import {
 } from "../../services/geoProvider";
 import { usePlaceMutations } from "../../hooks/usePlaces";
 import { safeGoogleMapsUrl } from "../../utils/externalUrls";
+import {
+  clearCustomPlaceDraft,
+  loadCustomPlaceDraft,
+  saveCustomPlaceDraft,
+  type CustomPlaceDraft,
+} from "../../utils/customPlaceDraft";
 export function PlaceEditor({
   source,
   providerPlace,
@@ -25,14 +31,22 @@ export function PlaceEditor({
   onSaved: (place: SavedPlace) => void;
 }) {
   const { save } = usePlaceMutations();
+  const draftEnabled = source === "custom" && !initial;
+  const persistedDraft = useMemo(
+    () => (draftEnabled ? loadCustomPlaceDraft() : null),
+    [draftEnabled],
+  );
   const [category, setCategory] = useState<PlaceCategory>(
     initial?.category ??
-      (providerPlace ? inferCategory(providerPlace.categories) : "start_point"),
+      (providerPlace
+        ? inferCategory(providerPlace.categories)
+        : (persistedDraft?.category ?? "start_point")),
   );
   const [isPrivate, setPrivate] = useState(
-    initial?.isPrivate ?? source === "custom",
+    initial?.isPrivate ?? persistedDraft?.isPrivate ?? source === "custom",
   );
   const values = initial ?? providerPlace;
+  const formRef = useRef<HTMLFormElement>(null);
   const baseLocation =
     values?.lat !== null &&
     values?.lat !== undefined &&
@@ -40,8 +54,12 @@ export function PlaceEditor({
     values?.lng !== undefined
       ? { lat: values.lat, lng: values.lng }
       : null;
-  const initialMapsUrl = initial?.googleMapsUrl ?? "";
+  const initialMapsUrl =
+    initial?.googleMapsUrl ?? persistedDraft?.googleMapsUrl ?? "";
   const [googleMapsUrl, setGoogleMapsUrl] = useState(initialMapsUrl);
+  const [subCategory, setSubCategory] = useState(
+    initial?.subCategory ?? persistedDraft?.subCategory ?? "",
+  );
   const [resolvedLocation, setResolvedLocation] =
     useState<GoogleMapsResolution | null>(
       baseLocation
@@ -58,6 +76,26 @@ export function PlaceEditor({
   const [resolving, setResolving] = useState(false);
   const [error, setError] = useState("");
 
+  function persistDraft(overrides: Partial<CustomPlaceDraft> = {}) {
+    if (!draftEnabled || !formRef.current) return;
+    const form = new FormData(formRef.current);
+    const value = (key: string) => String(form.get(key) ?? "");
+    saveCustomPlaceDraft({
+      name: value("label"),
+      category,
+      address: value("address"),
+      googleMapsUrl,
+      isPrivate,
+      isFavorite: form.get("favorite") === "on",
+      budget: value("budget"),
+      duration: value("duration") || "60",
+      subCategory,
+      notes: value("notes"),
+      tags: value("tags"),
+      ...overrides,
+    });
+  }
+
   const resolveMapsUrl = async (
     rawUrl = googleMapsUrl,
   ): Promise<GoogleMapsResolution | null> => {
@@ -71,6 +109,7 @@ export function PlaceEditor({
     try {
       const location = await geoProvider.resolveGoogleMapsUrl(normalized);
       setGoogleMapsUrl(normalized);
+      persistDraft({ googleMapsUrl: normalized });
       setResolvedLocation(location);
       setResolvedForUrl(normalized);
       return location;
@@ -87,6 +126,8 @@ export function PlaceEditor({
   };
   return (
     <form
+      ref={formRef}
+      onInput={() => persistDraft()}
       onSubmit={async (event) => {
         event.preventDefault();
         setError("");
@@ -155,9 +196,12 @@ export function PlaceEditor({
           return;
         }
         try {
-          onSaved(
-            await save.mutateAsync({ draft: parsed.data, id: initial?.id }),
-          );
+          const savedPlace = await save.mutateAsync({
+            draft: parsed.data,
+            id: initial?.id,
+          });
+          if (draftEnabled) clearCustomPlaceDraft();
+          onSaved(savedPlace);
         } catch (reason) {
           setError(
             reason instanceof Error
@@ -177,7 +221,7 @@ export function PlaceEditor({
         Tên địa điểm
         <input
           name="label"
-          defaultValue={values?.name ?? ""}
+          defaultValue={values?.name ?? persistedDraft?.name ?? ""}
           required
           maxLength={120}
           placeholder="Nhà tôi / điểm đón"
@@ -189,8 +233,17 @@ export function PlaceEditor({
           value={category}
           onChange={(e) => {
             const next = e.target.value as PlaceCategory;
+            const nextSubCategory =
+              category === "other" || next === "other" ? "" : subCategory;
+            const nextPrivate = next === "start_point" ? true : isPrivate;
             setCategory(next);
+            setSubCategory(nextSubCategory);
             if (next === "start_point") setPrivate(true);
+            persistDraft({
+              category: next,
+              subCategory: nextSubCategory,
+              isPrivate: nextPrivate,
+            });
           }}
         >
           {Object.entries(categories).map(([key, c]) => (
@@ -204,7 +257,7 @@ export function PlaceEditor({
         Địa chỉ do bạn nhập
         <input
           name="address"
-          defaultValue={values?.address ?? ""}
+          defaultValue={values?.address ?? persistedDraft?.address ?? ""}
           maxLength={500}
         />
       </label>
@@ -217,7 +270,11 @@ export function PlaceEditor({
           type="url"
           maxLength={2048}
           value={googleMapsUrl}
-          onChange={(event) => setGoogleMapsUrl(event.target.value)}
+          onChange={(event) => {
+            const next = event.target.value;
+            setGoogleMapsUrl(next);
+            persistDraft({ googleMapsUrl: next });
+          }}
           required={source === "custom" && !baseLocation}
           placeholder="https://maps.app.goo.gl/…"
         />
@@ -254,7 +311,11 @@ export function PlaceEditor({
         <input
           type="checkbox"
           checked={isPrivate}
-          onChange={(e) => setPrivate(e.target.checked)}
+          onChange={(e) => {
+            const next = e.target.checked;
+            setPrivate(next);
+            persistDraft({ isPrivate: next });
+          }}
         />
         Đây là địa điểm riêng tư
       </label>
@@ -262,7 +323,9 @@ export function PlaceEditor({
         <input
           name="favorite"
           type="checkbox"
-          defaultChecked={initial?.isFavorite ?? false}
+          defaultChecked={
+            initial?.isFavorite ?? persistedDraft?.isFavorite ?? false
+          }
         />
         Yêu thích
       </label>
@@ -275,7 +338,9 @@ export function PlaceEditor({
             min={0}
             max={2147483647}
             step={1}
-            defaultValue={initial?.estimatedCostPerPerson ?? ""}
+            defaultValue={
+              initial?.estimatedCostPerPerson ?? persistedDraft?.budget ?? ""
+            }
           />
         </label>
         <label>
@@ -286,18 +351,30 @@ export function PlaceEditor({
             min={0}
             max={1440}
             step={1}
-            defaultValue={initial?.averageTimeSpentMinutes ?? 60}
+            defaultValue={
+              initial?.averageTimeSpentMinutes ?? persistedDraft?.duration ?? 60
+            }
             required
           />
         </label>
       </div>
       <label>
-        Loại phụ
+        {category === "other" ? "Tên loại cụ thể" : "Loại phụ (không bắt buộc)"}
         <input
           name="subCategory"
           maxLength={80}
-          defaultValue={initial?.subCategory ?? ""}
-          placeholder="Ví dụ: photobooth"
+          value={subCategory}
+          onChange={(event) => {
+            const next = event.target.value;
+            setSubCategory(next);
+            persistDraft({ subCategory: next });
+          }}
+          required={category === "other"}
+          placeholder={
+            category === "other"
+              ? "Ví dụ: Tiệm hoa / Studio"
+              : "Ví dụ: photobooth"
+          }
         />
       </label>
       <label>
@@ -305,13 +382,18 @@ export function PlaceEditor({
         <textarea
           name="notes"
           maxLength={3000}
-          defaultValue={initial?.notes ?? ""}
+          defaultValue={initial?.notes ?? persistedDraft?.notes ?? ""}
           rows={3}
         />
       </label>
       <label>
         Nhãn, ngăn cách bằng dấu phẩy
-        <input name="tags" defaultValue={initial?.tags.join(", ") ?? ""} />
+        <input
+          name="tags"
+          defaultValue={
+            initial?.tags.join(", ") ?? persistedDraft?.tags ?? ""
+          }
+        />
       </label>
       <p className="muted">
         Liên kết Google Maps sẽ bị ẩn với địa điểm riêng tư.

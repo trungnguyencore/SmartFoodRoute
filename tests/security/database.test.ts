@@ -105,6 +105,31 @@ describe("actual PostgreSQL RLS and security RPCs", () => {
       is_private: true,
     });
   });
+  it("forward category migration adds drink without rewriting legacy food", async () => {
+    await db.query(
+      "insert into public.saved_places(user_id,source,category,name,lat,lng) values($1,'custom','drink','Trà tối',10.2,106.2)",
+      [A],
+    );
+    expect(
+      await scalar(
+        "select category::text as v from public.saved_places where name='Trà tối'",
+      ),
+    ).toBe("drink");
+    expect(
+      await scalar(
+        "select category::text as v from public.saved_places where id=$1",
+        [PB],
+      ),
+    ).toBeUndefined();
+    await identity("authenticated", B);
+    expect(
+      await scalar(
+        "select category::text as v from public.saved_places where id=$1",
+        [PB],
+      ),
+    ).toBe("food");
+  });
+
   it("new clients cannot invent unresolved legacy rows", async () => {
     await expect(
       db.query(
